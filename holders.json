@@ -1,0 +1,209 @@
+[
+  {
+    "id": "h_c50er32",
+    "kind": "taper",
+    "name": "CAT50 ER32 x 4.00",
+    "taper": "CAT50",
+    "nose": "ER32",
+    "gripMin": 0.75,
+    "segs": [
+      {
+        "len": 0.75,
+        "dTop": 3.875,
+        "dBot": 3.875
+      },
+      {
+        "len": 2.5,
+        "dTop": 2.5,
+        "dBot": 1.65
+      },
+      {
+        "len": 0.75,
+        "dTop": 1.65,
+        "dBot": 1.18
+      }
+    ]
+  },
+  {
+    "id": "h_c50er32l",
+    "kind": "taper",
+    "name": "CAT50 ER32 x 6.00",
+    "taper": "CAT50",
+    "nose": "ER32",
+    "gripMin": 0.75,
+    "segs": [
+      {
+        "len": 0.75,
+        "dTop": 3.875,
+        "dBot": 3.875
+      },
+      {
+        "len": 4.5,
+        "dTop": 2.5,
+        "dBot": 1.65
+      },
+      {
+        "len": 0.75,
+        "dTop": 1.65,
+        "dBot": 1.18
+      }
+    ]
+  },
+  {
+    "id": "h_c50er16",
+    "kind": "taper",
+    "name": "CAT50 ER16 x 3.00",
+    "taper": "CAT50",
+    "nose": "ER16",
+    "gripMin": 0.5,
+    "segs": [
+      {
+        "len": 0.75,
+        "dTop": 3.875,
+        "dBot": 3.875
+      },
+      {
+        "len": 1.65,
+        "dTop": 2,
+        "dBot": 1
+      },
+      {
+        "len": 0.6,
+        "dTop": 1,
+        "dBot": 0.7
+      }
+    ]
+  },
+  {
+    "id": "h_c50er40",
+    "kind": "taper",
+    "name": "CAT50 ER40 x 4.00",
+    "taper": "CAT50",
+    "nose": "ER40",
+    "gripMin": 1,
+    "segs": [
+      {
+        "len": 0.75,
+        "dTop": 3.875,
+        "dBot": 3.875
+      },
+      {
+        "len": 2.35,
+        "dTop": 2.9,
+        "dBot": 2.15
+      },
+      {
+        "len": 0.9,
+        "dTop": 2.15,
+        "dBot": 1.57
+      }
+    ]
+  },
+  {
+    "id": "h_c50sf50",
+    "kind": "taper",
+    "name": "CAT50 shrink fit 0.500 x 4.50",
+    "taper": "CAT50",
+    "nose": "0.500 shrink",
+    "gripMin": 1,
+    "segs": [
+      {
+        "len": 0.75,
+        "dTop": 3.875,
+        "dBot": 3.875
+      },
+      {
+        "len": 2.75,
+        "dTop": 2,
+        "dBot": 1.1
+      },
+      {
+        "len": 1,
+        "dTop": 1.1,
+        "dBot": 0.79
+      }
+    ]
+  },
+  {
+    "id": "h_c50sl75",
+    "kind": "taper",
+    "name": "CAT50 side lock 0.750 x 3.00",
+    "taper": "CAT50",
+    "nose": "0.750 Weldon",
+    "gripMin": 1,
+    "segs": [
+      {
+        "len": 0.75,
+        "dTop": 3.875,
+        "dBot": 3.875
+      },
+      {
+        "len": 2.25,
+        "dTop": 1.75,
+        "dBot": 1.75
+      }
+    ]
+  },
+  {
+    "id": "h_c50shl",
+    "kind": "taper",
+    "name": "CAT50 shell mill arbor 1.00 x 2.50",
+    "taper": "CAT50",
+    "nose": "1.000 shell",
+    "segs": [
+      {
+        "len": 0.75,
+        "dTop": 3.875,
+        "dBot": 3.875
+      },
+      {
+        "len": 1.4,
+        "dTop": 2.5,
+        "dBot": 2.5
+      },
+      {
+        "len": 0.35,
+        "dTop": 1,
+        "dBot": 1
+      }
+    ]
+  },
+  {
+    "id": "h_ext32",
+    "kind": "ext",
+    "name": "ER32 extension x 3.00",
+    "nose": "ER32",
+    "gripMin": 0.75,
+    "segs": [
+      {
+        "len": 2.25,
+        "dTop": 1.5,
+        "dBot": 1.65
+      },
+      {
+        "len": 0.75,
+        "dTop": 1.65,
+        "dBot": 1.18
+      }
+    ]
+  },
+  {
+    "id": "h_ext16",
+    "kind": "ext",
+    "name": "ER16 extension x 2.50",
+    "nose": "ER16",
+    "gripMin": 0.5,
+    "segs": [
+      {
+        "len": 1.9,
+        "dTop": 1,
+        "dBot": 1
+      },
+      {
+        "len": 0.6,
+        "dTop": 1,
+        "dBot": 0.7
+      }
+    ]
+  }
+]

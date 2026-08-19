@@ -199,7 +199,8 @@ tr.clickable:hover { background: color-mix(in srgb, var(--color-accent) 8%, tran
 
 var LS_KEY = 'machineshop.registry.v1';
 
-var MILL_TYPES = ['Endmill', 'Ball endmill', 'Bull endmill', 'Face mill', 'Drill', 'Spot drill', 'Tap', 'Reamer', 'Chamfer mill', 'Boring head', 'Probe'];
+var MILL_TYPES = ['Endmill', 'Ball endmill', 'Bull endmill', 'Face mill', 'Drill', 'Spot drill', 'Tap', 'Reamer',
+  'Chamfer mill', 'Dovetail mill', 'Undercut (lollipop)', 'T-slot mill', 'Keyseat cutter', 'Boring head', 'Probe'];
 var LATHE_TYPES = ['Turning (OD)', 'Boring bar', 'Grooving', 'Threading', 'Parting', 'Drill', 'Tap', 'Reamer', 'Center drill'];
 
 var MILL_FIELDS = [
@@ -210,7 +211,7 @@ var MILL_FIELDS = [
   { k: 'flutes', label: 'Flutes', ph: '4' },
   { k: 'foc', label: 'Flute length', ph: '1.250' },
   { k: 'material', label: 'Material / coating', ph: 'Carbide, AlTiN' },
-  { k: 'holder', label: 'Holder', ph: 'CAT40 ER32' },
+  { k: 'holder', label: 'Holder', ph: 'CAT50 ER32' },
   { k: 'gauge', label: 'Gauge length', ph: '4.250' },
   { k: 'vendor', label: 'Vendor', ph: 'Kennametal' },
   { k: 'partno', label: 'Vendor part #', ph: '5065432' },
@@ -266,12 +267,95 @@ function defaultType() {
 }
 function jobsPageTitle(t) { return typeLabel(t) + ' jobs'; }
 
+/* A registry is keyed by tooling, not by machine type — several types can
+   share one, and a mill-turn needs both. Untick every type that uses a
+   registry and the registry goes with them, out of the nav and off the
+   dashboard, instead of hanging around because it was hardcoded. */
+function visibleRegistries() {
+  var has = {};
+  visibleTypes().forEach(function (t) {
+    var g = t.tooling || 'mill';
+    if (g === 'both') { has.mill = true; has.lathe = true; } else { has[g] = true; }
+  });
+  var out = [];
+  if (has.mill) out.push('mill');
+  if (has.lathe) out.push('lathe');
+  return out;
+}
+
+function registryLabel(g) {
+  var t = visibleTypes().filter(function (x) { return (x.tooling || 'mill') === g; })[0];
+  return t ? t.label : (g === 'lathe' ? 'Lathe' : 'Mill');
+}
+
+/* Whatever is on screen has to be something still switched on. */
+function currentRegistry() {
+  var vis = visibleRegistries();
+  if (!vis.length) return null;
+  return vis.indexOf(state.machineType) >= 0 ? state.machineType : vis[0];
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Tool assemblies — the holder library
+   ══════════════════════════════════════════════════════════════════ */
+
+/* A holder is a stack of frusta ("segs"), listed spindle-end first. A seg with
+   the same diameter top and bottom is a cylinder; different ones make a cone.
+   That is enough shape to recognise a holder on the rack, and little enough
+   to type in by hand. Every length is the projection PAST the face the part
+   mounts to, so the numbers add up down the stack. */
+
+var HOLDER_KINDS = [
+  { value: 'taper',  label: 'Holder (with taper)' },
+  { value: 'ext',    label: 'Extension / reducer' },
+  { value: 'collet', label: 'Collet / sleeve' },
+  { value: 'arbor',  label: 'Adapter / arbor' }
+];
+
+/* Everything above the gauge line — the cone and the retention knob — is the
+   same for every holder of a given taper, so it is drawn from this table
+   instead of being typed into each part. Nominal, and only ever drawn. */
+var TAPER_PRESETS = {
+  'CAT40':  { gage: 1.750, cone: 2.6875, small: 0.966, knob: 0.60, knobDia: 0.640 },
+  'CAT50':  { gage: 2.750, cone: 4.0000, small: 1.583, knob: 0.80, knobDia: 1.000 },
+  'BT30':   { gage: 1.250, cone: 1.8125, small: 0.721, knob: 0.50, knobDia: 0.470 },
+  'BT40':   { gage: 1.750, cone: 2.5625, small: 1.003, knob: 0.60, knobDia: 0.590 },
+  'HSK63A': { gage: 2.480, cone: 2.0080, small: 2.283, knob: 0,    knobDia: 0 }
+};
+
+var TAPER_LIST = ['CAT50', 'CAT40', 'BT30', 'BT40', 'HSK63A'];
+
+/* Shipped so the feature is usable the moment it is opened. Nominal catalogue
+   sizes — every one of them is editable, and a shop should correct them
+   against what is actually in the crib. */
+var DEFAULT_HOLDERS = [
+  { id: 'h_c50er32', kind: 'taper', name: 'CAT50 ER32 x 4.00', taper: 'CAT50', nose: 'ER32', gripMin: 0.75,
+    segs: [{ len: 0.75, dTop: 3.875, dBot: 3.875 }, { len: 2.50, dTop: 2.500, dBot: 1.650 }, { len: 0.75, dTop: 1.650, dBot: 1.180 }] },
+  { id: 'h_c50er32l', kind: 'taper', name: 'CAT50 ER32 x 6.00', taper: 'CAT50', nose: 'ER32', gripMin: 0.75,
+    segs: [{ len: 0.75, dTop: 3.875, dBot: 3.875 }, { len: 4.50, dTop: 2.500, dBot: 1.650 }, { len: 0.75, dTop: 1.650, dBot: 1.180 }] },
+  { id: 'h_c50er16', kind: 'taper', name: 'CAT50 ER16 x 3.00', taper: 'CAT50', nose: 'ER16', gripMin: 0.50,
+    segs: [{ len: 0.75, dTop: 3.875, dBot: 3.875 }, { len: 1.65, dTop: 2.000, dBot: 1.000 }, { len: 0.60, dTop: 1.000, dBot: 0.700 }] },
+  { id: 'h_c50er40', kind: 'taper', name: 'CAT50 ER40 x 4.00', taper: 'CAT50', nose: 'ER40', gripMin: 1.00,
+    segs: [{ len: 0.75, dTop: 3.875, dBot: 3.875 }, { len: 2.35, dTop: 2.900, dBot: 2.150 }, { len: 0.90, dTop: 2.150, dBot: 1.570 }] },
+  { id: 'h_c50sf50', kind: 'taper', name: 'CAT50 shrink fit 0.500 x 4.50', taper: 'CAT50', nose: '0.500 shrink', gripMin: 1.00,
+    segs: [{ len: 0.75, dTop: 3.875, dBot: 3.875 }, { len: 2.75, dTop: 2.000, dBot: 1.100 }, { len: 1.00, dTop: 1.100, dBot: 0.790 }] },
+  { id: 'h_c50sl75', kind: 'taper', name: 'CAT50 side lock 0.750 x 3.00', taper: 'CAT50', nose: '0.750 Weldon', gripMin: 1.00,
+    segs: [{ len: 0.75, dTop: 3.875, dBot: 3.875 }, { len: 2.25, dTop: 1.750, dBot: 1.750 }] },
+  { id: 'h_c50shl', kind: 'taper', name: 'CAT50 shell mill arbor 1.00 x 2.50', taper: 'CAT50', nose: '1.000 shell',
+    segs: [{ len: 0.75, dTop: 3.875, dBot: 3.875 }, { len: 1.40, dTop: 2.500, dBot: 2.500 }, { len: 0.35, dTop: 1.000, dBot: 1.000 }] },
+  { id: 'h_ext32', kind: 'ext', name: 'ER32 extension x 3.00', nose: 'ER32', gripMin: 0.75,
+    segs: [{ len: 2.25, dTop: 1.500, dBot: 1.650 }, { len: 0.75, dTop: 1.650, dBot: 1.180 }] },
+  { id: 'h_ext16', kind: 'ext', name: 'ER16 extension x 2.50', nose: 'ER16', gripMin: 0.50,
+    segs: [{ len: 1.90, dTop: 1.000, dBot: 1.000 }, { len: 0.60, dTop: 1.000, dBot: 0.700 }] }
+];
+
 var DEFAULT_SETTINGS = {
   shopName: 'Machine shop',
   machineTypes: null,      // null = the built-in three; Settings replaces it
   subtitle: '',          // optional line next to the shop name; empty = just the name
   showVendor: true,
-  signoffLines: false
+  signoffLines: false,
+  setupDiagrams: false   // off: the setup sheet is rewritten on every job flush
 };
 
 var SEED = {
@@ -281,8 +365,10 @@ var SEED = {
     { id: 'm3', name: 'Mazak 350MSY', type: 'lathe' }
   ],
   tools: [
-    { id: 't1', machine: 'mill', tnum: 'T101', desc: '1/2" 4FL carbide endmill', type: 'Endmill', dia: '0.500', flutes: '4', foc: '1.250', material: 'Carbide, AlTiN', holder: 'CAT40 ER32', vendor: 'Kennametal', partno: '5065432' },
-    { id: 't2', machine: 'mill', tnum: 'T102', desc: '#7 jobber drill', type: 'Drill', dia: '0.201', flutes: '2', foc: '2.750', material: 'HSS-Co', holder: 'CAT40 ER32', vendor: 'Guhring', partno: '9001-0201' },
+    { id: 't1', machine: 'mill', tnum: 'T101', desc: '1/2" 4FL carbide endmill', type: 'Endmill', dia: '0.500', flutes: '4', foc: '1.250', material: 'Carbide, AlTiN', holder: 'CAT50 ER32', gauge: '5.250', vendor: 'Kennametal', partno: '5065432',
+      assembly: { stack: [{ u: 'sa1', ref: 'h_c50er32' }], stickout: '1.250', shankDia: '0.500' } },
+    { id: 't2', machine: 'mill', tnum: 'T102', desc: '#7 jobber drill', type: 'Drill', dia: '0.201', flutes: '2', foc: '2.750', material: 'HSS-Co', holder: 'CAT50 ER16', gauge: '7.000', vendor: 'Guhring', partno: '9001-0201',
+      assembly: { stack: [{ u: 'sa2', ref: 'h_c50er16' }], stickout: '4.000', shankDia: '0.250' } },
     { id: 't3', machine: 'mill', tnum: 'T103', desc: '1/4-20 spiral flute tap', type: 'Tap', dia: '0.250', flutes: '3', foc: '1.000', material: 'HSS-E, TiN', holder: 'Tension/comp', vendor: 'Emuge', partno: 'B0512300' },
     { id: 't4', machine: 'lathe', tnum: 'T5', desc: '80° OD roughing, CNMG', type: 'Turning (OD)', turret: '5', nose: '0.031', hand: 'Right', material: 'CNMG432 / TN60', shank: '1" square', vendor: 'Sandvik', partno: 'DCLNR-164D' },
     { id: 't5', machine: 'lathe', tnum: 'T7', desc: '.750 boring bar, carbide shank', type: 'Boring bar', turret: '7', nose: '0.016', hand: 'Right', material: 'CCMT32.51 / TP2500', shank: '0.750 round', vendor: 'Iscar', partno: 'A12M-SCLCR3' }
@@ -477,12 +563,27 @@ async function statSig(dirHandle, name) {
 
 /* Writes and returns the new signature, so our own write is never mistaken
    for somebody else's. */
-async function writeFile(dirHandle, name, text) {
+async function writeOnce(dirHandle, name, text) {
   var fh = await dirHandle.getFileHandle(name, { create: true });
   var w = await fh.createWritable();
   await w.write(text);
   await w.close();
   return sigOf(await fh.getFile());
+}
+
+/* Chrome does not write the file in place: it writes a temporary "name.crswap"
+   next to it and renames it at close. A sync client — OneDrive, Dropbox,
+   Google Drive — that sweeps that scratch file up mid-write makes close()
+   fail with NotFoundError even though the folder is perfectly fine. It is a
+   race, so a second attempt a moment later usually lands. */
+async function writeFile(dirHandle, name, text) {
+  try {
+    return await writeOnce(dirHandle, name, text);
+  } catch (e) {
+    if (!e || e.name !== 'NotFoundError') throw e;
+    await new Promise(function (r) { setTimeout(r, 250); });
+    return writeOnce(dirHandle, name, text);
+  }
 }
 
 function writeJSON(dirHandle, name, data) {
@@ -583,25 +684,122 @@ async function connectFolder() {
     await loadFromDisk();
   } catch (e) {
     if (e && e.name === 'AbortError') return;      // user closed the picker
+    if (folderMissing(e)) return handleMissing(e, 'picking the folder');
     store.error = e && e.message ? e.message : String(e);
     render();
   }
 }
 
+/* Chrome remembers the folder but not the permission, and it will only
+   re-prompt for it under conditions it does not advertise — after a restart,
+   or once the site's file-access setting has been cleared, requestPermission
+   just resolves 'prompt' or throws, and the click looks like it did nothing.
+   So: ask, and if the answer is anything but yes, say so and offer the one
+   thing that always works — picking the folder again from a fresh click. */
+/* A moved, renamed or unmounted folder comes back as a bare NotFoundError —
+   "A requested file or directory could not be found at the time an operation
+   was processed" — which tells a machinist nothing. Say what happened. */
+function folderMissing(e) { return !!(e && e.name === 'NotFoundError'); }
+
+function folderLabel() { return store.name ? '"' + store.name + '"' : 'the data folder'; }
+
+function noteFolderGone() {
+  store.connected = false;
+  store.error = 'The data folder ' + folderLabel() +
+    ' is not there any more — it was moved or renamed, or the share it lives on is not mounted. ' +
+    'Your work is safe in this browser; reconnect once the folder is back.';
+}
+
+/* Can we still list the folder itself? A NotFoundError from somewhere deeper
+   — a job folder deleted on another machine, a photo removed under us — does
+   NOT mean the data folder has gone, and saying so sends people hunting for a
+   folder that is sitting right where they left it. Ask before claiming. */
+/* 'ok' the folder lists fine, 'gone' it is really not there, 'noperm' we are
+   simply not allowed to look — which is NOT the same as gone, and saying so
+   sends people hunting for a folder sitting right where they left it. */
+async function probeFolder() {
+  if (!store.dir || !store.dir.values) return 'noperm';
+  try {
+    for await (var e of store.dir.values()) { break; }
+    return 'ok';
+  } catch (err) {
+    return err && err.name === 'NotFoundError' ? 'gone' : 'noperm';
+  }
+}
+
+async function handleMissing(e, where) {
+  var detail = ' [' + (where || 'folder') + ': ' + ((e && e.name) || 'Error') +
+    (e && e.message ? ' — ' + e.message : '') + ']';
+  if (window.console) console.warn('Tool Master folder problem at ' + where, e);
+  var probe = await probeFolder();
+  if (probe === 'ok' && where === 'writing') {
+    store.error = 'Could not write to ' + folderLabel() + ', though the folder itself is fine. This is almost ' +
+      'always a sync client (OneDrive, Dropbox, Google Drive) deleting the temporary file Chrome writes through. ' +
+      'Pause syncing on that folder, or keep the data folder on a plain local disk or a network share instead. ' +
+      'Nothing is lost — everything is held here and will write out once the folder accepts it.' + detail;
+  } else if (probe === 'ok') {
+    store.error = 'Something inside ' + folderLabel() + ' could not be read — a file or job folder was ' +
+      'renamed or deleted while the app was open. The folder itself is fine and your work is safe; ' +
+      'press Sync to re-read it.' + detail;
+  } else if (probe === 'gone') {
+    noteFolderGone();
+    store.error += detail;
+  } else {
+    store.connected = false;
+    store.error = 'This browser will not let the app into ' + folderLabel() + ' right now. ' +
+      'Press Sync and choose the folder again — that always restores access. Your work is safe here meanwhile.' + detail;
+  }
+  render();
+}
+
 async function grantAndLoad() {
   if (!store.dir) return connectFolder();
-  var perm = await store.dir.requestPermission({ mode: 'readwrite' });
-  if (perm !== 'granted') {
-    store.error = 'Permission to the data folder was declined.';
-    render();
+  var perm = 'prompt';
+  try {
+    perm = await store.dir.requestPermission({ mode: 'readwrite' });
+  } catch (e) {
+    if (folderMissing(e)) { await handleMissing(e, 'asking for access'); return askRepick('missing'); }
+    perm = 'error';
+    store.error = 'Could not ask for folder access: ' + (e && e.message ? e.message : String(e));
+  }
+  if (perm === 'granted') {
+    store.error = '';
+    await loadFromDisk();
+    // Permission alone is not a reconnection — if the load still failed, the
+    // click has to end somewhere the user can act, not just a banner.
+    if (!store.connected) askRepick('');
     return;
   }
-  await loadFromDisk();
+  askRepick(perm === 'denied' ? 'declined' : '');
+}
+
+function askRepick(reason) {
+  var name = store.name ? '"' + store.name + '"' : 'the data folder';
+  var body;
+  if (reason === 'missing') {
+    body = name + ' is not where it was — moved, renamed, or on a share that is not mounted right now. ' +
+      'Put it back or mount the share, then choose it again. Nothing is lost in the meantime: everything ' +
+      'you have done is still here in this browser and gets written out when it reconnects.';
+  } else if (reason === 'declined') {
+    body = 'Without access to ' + name + ' the app keeps working, but only in this browser. Choose the folder again to reconnect it.';
+  } else {
+    body = 'This browser remembers ' + name + ' but not the permission to it, and it will not always ask again on its own. ' +
+      'Choose the same folder and everything reconnects — nothing is lost either way.';
+  }
+  set({ dialog: {
+    kind: 'confirm',
+    title: reason === 'declined' ? 'Folder access was declined'
+      : reason === 'missing' ? 'The data folder has moved' : 'Pick the data folder again',
+    body: body,
+    okLabel: 'Choose folder…',
+    // Opening the picker from this click keeps the user gesture Chrome wants.
+    action: function () { state.dialog = null; state.draft = null; connectFolder(); }
+  } });
 }
 
 /* Signatures of every file as we last saw it. The difference between "this
    changed" and "we changed it" is the whole basis of the sharing model. */
-var seen = { tools: null, machines: null, settings: null, jobs: {}, dirs: {} };
+var seen = { tools: null, machines: null, settings: null, holders: null, jobs: {}, dirs: {} };
 
 /* One pass over the folder: the three top-level files plus every job dir.
    In light mode (used by the poll) a file whose signature still matches is
@@ -620,9 +818,19 @@ async function scanDisk(light) {
     tools: await top('tools.json', seen.tools),
     machines: await top('machines.json', seen.machines),
     settings: await top('settings.json', seen.settings),
+    holders: await top('holders.json', seen.holders),
     jobs: [], warnings: 0
   };
-  var jobsDir = await root.getDirectoryHandle('jobs', { create: true });
+  var jobsDir;
+  try {
+    jobsDir = await root.getDirectoryHandle('jobs', { create: true });
+  } catch (e) {
+    // The registries live in the top-level files and do not need jobs/ — a
+    // read-only folder or a share that will not take a new directory should
+    // cost you the job list, not the whole connection.
+    scan.jobsError = (e && e.name ? e.name : 'Error') + (e && e.message ? ' — ' + e.message : '');
+    return scan;
+  }
 
   /* side === null means a job folder sitting straight under jobs/ — the old
      flat layout. Those are read, then moved into their type's folder. */
@@ -696,14 +904,20 @@ async function loadFromDisk() {
       return;
     }
 
-    state.tools = scan.tools ? scan.tools.data : [];
-    state.machines = scan.machines ? scan.machines.data : SEED.machines.slice();
-    state.settings = Object.assign({}, DEFAULT_SETTINGS, scan.settings ? scan.settings.data : {});
-    state.jobs = scan.jobs.map(function (m) { return m.data; });
+    /* A file that is not on disk means "we have not written it yet", never
+       "the shop has no tools". A folder where the first write failed part way
+       through has machines.json but no tools.json, and reading that as an
+       empty registry throws the crib away. Keep what we have and write it. */
+    state.tools = scan.tools ? scan.tools.data : state.tools;
+    state.machines = scan.machines ? scan.machines.data : state.machines;
+    state.settings = Object.assign({}, DEFAULT_SETTINGS, scan.settings ? scan.settings.data : state.settings);
+    state.holders = scan.holders ? scan.holders.data : state.holders;
+    state.jobs = scan.jobsError ? state.jobs : scan.jobs.map(function (m) { return m.data; });
     sortJobs();
 
     seen = { tools: scan.tools && scan.tools.sig, machines: scan.machines && scan.machines.sig,
-             settings: scan.settings && scan.settings.sig, jobs: {}, dirs: {} };
+             settings: scan.settings && scan.settings.sig, holders: scan.holders && scan.holders.sig,
+             jobs: {}, dirs: {} };
     scan.jobs.forEach(function (m) { seen.jobs[m.data.id] = m.sig; noteDir(m.dir, m.data.id, m.sig); });
 
     if (state.jobId && !state.jobs.some(function (j) { return j.id === state.jobId; })) {
@@ -712,9 +926,17 @@ async function loadFromDisk() {
     }
 
     store.connected = true;
-    store.error = scan.warnings ? scan.warnings + ' job folder(s) skipped — unreadable job.json' : '';
+    store.error = scan.jobsError
+      ? 'Connected, but the jobs folder could not be opened (' + scan.jobsError + '). Tools and holders are syncing; jobs are staying in this browser for now.'
+      : scan.warnings ? scan.warnings + ' job folder(s) skipped — unreadable job.json' : '';
     store.lastSync = new Date();
-    dirty = { tools: false, machines: false, settings: false, jobs: {} };
+    dirty = { tools: false, machines: false, settings: false, holders: false, jobs: {} };
+    // Anything the folder is missing is ours to write, not ours to forget.
+    if (!scan.tools) dirty.tools = true;
+    if (!scan.machines) dirty.machines = true;
+    if (!scan.settings) dirty.settings = true;
+    if (!scan.holders) dirty.holders = true;
+    if (dirty.tools || dirty.machines || dirty.settings || dirty.holders) scheduleFlush();
 
     // Folders written before the mill/lathe split get rewritten into their
     // side folder on the next flush, and the flat one is removed.
@@ -727,6 +949,7 @@ async function loadFromDisk() {
     startPolling();
     render();
   } catch (e) {
+    if (folderMissing(e)) return handleMissing(e, 'reading the folder');
     store.connected = false;
     store.error = e && e.message ? e.message : String(e);
     render();
@@ -757,7 +980,8 @@ function pollDisk() {
         render();
       }
     } catch (e) {
-      if (e && e.name === 'NotAllowedError') { store.connected = false; render(); }
+      if (folderMissing(e)) { await handleMissing(e, 'the folder watch'); }
+      else if (e && e.name === 'NotAllowedError') { store.connected = false; render(); }
     }
   });
   return flushChain;
@@ -774,6 +998,9 @@ function mergeScan(scan) {
   }
   if (scan.machines && !scan.machines.unchanged && scan.machines.sig !== seen.machines && !dirty.machines) {
     state.machines = scan.machines.data; seen.machines = scan.machines.sig; changed = true;
+  }
+  if (scan.holders && !scan.holders.unchanged && scan.holders.sig !== seen.holders && !dirty.holders) {
+    state.holders = scan.holders.data; seen.holders = scan.holders.sig; changed = true;
   }
   if (scan.settings && !scan.settings.unchanged && scan.settings.sig !== seen.settings && !dirty.settings) {
     state.settings = Object.assign({}, DEFAULT_SETTINGS, scan.settings.data);
@@ -813,7 +1040,7 @@ function mergeScan(scan) {
 
 /* ── conflicts ───────────────────────────────────────────────────────── */
 
-var conflict = null;   // {kind:'tools'|'machines'|'settings'|'job', id, label}
+var conflict = null;   // {kind:'tools'|'machines'|'settings'|'holders'|'job', id, label}
 
 function raiseConflict(kind, id, label) {
   if (conflict) return;
@@ -873,12 +1100,12 @@ function resolveTakeTheirs() {
 
 /* ── dirty tracking and debounced writes ─────────────────────────────── */
 
-var dirty = { tools: false, machines: false, settings: false, jobs: {} };
+var dirty = { tools: false, machines: false, settings: false, holders: false, jobs: {} };
 var flushTimer = null;
 var flushChain = Promise.resolve();
 
 function markAllDirty() {
-  dirty.tools = true; dirty.machines = true; dirty.settings = true;
+  dirty.tools = true; dirty.machines = true; dirty.settings = true; dirty.holders = true;
   state.jobs.forEach(function (j) { dirty.jobs[j.id] = true; });
 }
 
@@ -891,6 +1118,7 @@ function scheduleFlush() {
 function markTools() { dirty.tools = true; scheduleFlush(); }
 function markMachines() { dirty.machines = true; scheduleFlush(); }
 function markSettings() { dirty.settings = true; scheduleFlush(); }
+function markHolders() { dirty.holders = true; scheduleFlush(); }
 function markJob(id) { dirty.jobs[id] = true; scheduleFlush(); }
 function markJobs(ids) { ids.forEach(function (id) { dirty.jobs[id] = true; }); scheduleFlush(); }
 
@@ -975,6 +1203,10 @@ function flushNow() {
           dirty.tools = true;
         }
       }
+      if (dirty.holders) {
+        if (await stale(store.dir, 'holders.json', seen.holders)) raiseConflict('holders', null, 'the holder library');
+        else { seen.holders = await writeJSON(store.dir, 'holders.json', state.holders); dirty.holders = false; }
+      }
       if (dirty.tools) {
         if (await stale(store.dir, 'tools.json', seen.tools)) raiseConflict('tools', null, 'the tool registry');
         else { seen.tools = await writeJSON(store.dir, 'tools.json', state.tools); dirty.tools = false; }
@@ -996,8 +1228,11 @@ function flushNow() {
       store.lastSync = new Date();
       if (store.error.slice(0, 12) === 'Write failed') store.error = '';
     } catch (e) {
-      store.error = 'Write failed: ' + (e && e.message ? e.message : String(e));
-      if (e && e.name === 'NotAllowedError') store.connected = false;
+      if (folderMissing(e)) { await handleMissing(e, 'writing'); }
+      else {
+        store.error = 'Write failed: ' + (e && e.message ? e.message : String(e));
+        if (e && e.name === 'NotAllowedError') store.connected = false;
+      }
     }
     render();
   });
@@ -1020,7 +1255,8 @@ async function removeJobDir(job) {
 function saveLocal() {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
-      tools: state.tools, jobs: state.jobs, machines: state.machines, settings: state.settings
+      tools: state.tools, jobs: state.jobs, machines: state.machines, settings: state.settings,
+      holders: state.holders
     }, stripPrivate));
   } catch (e) { /* quota */ }
 }
@@ -1044,6 +1280,7 @@ var state = {
   tools: SEED.tools.slice(),
   jobs: SEED.jobs.slice(),
   machines: SEED.machines.slice(),
+  holders: DEFAULT_HOLDERS.slice(),
   settings: Object.assign({}, DEFAULT_SETTINGS),
   search: '',
   pickSearch: '',
@@ -1054,12 +1291,26 @@ var state = {
   newMachineName: '',
   newMachineType: 'mill',
   newTypeName: '',
-  newTypeTooling: 'mill'
+  newTypeTooling: 'mill',
+  holderSearch: '',
+  hDraft: null,          // the holder being edited — kept apart from `draft`
+  hDraftError: '',       // so the tool dialog survives a trip to the library
+  pickSearchH: ''
 };
 
 function set(patch) { Object.assign(state, patch); render(); }
 
 function fieldsFor(mt) { return mt === 'lathe' ? LATHE_FIELDS : MILL_FIELDS; }
+
+/* Object.assign is shallow, so the draft would share its `assembly` object
+   with the saved tool — every stack edit would land on the registry whether
+   or not you pressed Save. Only that key needs the deep copy; `imageData` is
+   a multi-megabyte data URI and there is no reason to duplicate it. */
+function cloneTool(t) {
+  var c = Object.assign({}, t);
+  if (t.assembly) c.assembly = JSON.parse(JSON.stringify(t.assembly));
+  return c;
+}
 
 function spec(t) {
   var gl = t.gauge ? 'GL ' + t.gauge : '';
@@ -1079,6 +1330,479 @@ function sortTools(list) {
   return list.slice().sort(function (a, b) {
     return n(a.tnum) - n(b.tnum) || String(a.tnum).localeCompare(String(b.tnum));
   });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Tool assemblies — geometry and drawing
+
+   One datum for everything: Z = 0 at the gauge line (the taper flange face),
+   positive DOWN toward the tool tip. That is the number a setter transcribes,
+   so it is the number the drawing is built on.
+   ══════════════════════════════════════════════════════════════════ */
+
+function num(v, dflt) {
+  var n = parseFloat(v);
+  return isFinite(n) ? n : (dflt === undefined ? 0 : dflt);
+}
+
+function fmt3(n) { return (Math.round(n * 1000) / 1000).toFixed(3); }
+
+function holderById(id) {
+  // The one being edited wins, so its dialog preview — and the tool dialog
+  // underneath it — follow the numbers as they are typed. Cancel reverts.
+  if (state.hDraft && state.hDraft.id === id) return state.hDraft;
+  return state.holders.filter(function (h) { return h.id === id; })[0] || null;
+}
+
+function holderKindLabel(k) {
+  var r = HOLDER_KINDS.filter(function (x) { return x.value === k; })[0];
+  return r ? r.label : (k || '');
+}
+
+/* What the part projects past the face it mounts to. The cone and knob above
+   the gauge line are drawn but never counted — they live in the spindle. */
+function compLength(c) {
+  if (!c) return 0;
+  return (c.segs || []).reduce(function (a, g) { return a + num(g.len); }, 0);
+}
+
+/* The full drawn profile of one part, top to bottom, in part-local Z where
+   0 is its mounting face. A holder's taper comes back with negative Z. */
+function compProfile(c) {
+  if (!c) return { segs: [], zTop: 0 };
+  var out = [], z = 0, zTop = 0;
+  var pre = c.kind === 'taper' ? TAPER_PRESETS[c.taper] : null;
+  if (pre) {
+    zTop = z = -(pre.cone + pre.knob);
+    if (pre.knob > 0) {
+      out.push({ z0: z, z1: z + pre.knob, dTop: pre.knobDia, dBot: pre.knobDia });
+      z += pre.knob;
+    }
+    out.push({ z0: z, z1: z + pre.cone, dTop: pre.small, dBot: pre.gage });
+    z += pre.cone;
+  }
+  (c.segs || []).forEach(function (g) {
+    var len = num(g.len);
+    out.push({ z0: z, z1: z + len, dTop: num(g.dTop, num(g.dBot)), dBot: num(g.dBot, num(g.dTop)) });
+    z += len;
+  });
+  return { segs: out, zTop: zTop };
+}
+
+function assemblyUsage(holderId) {
+  return state.tools.filter(function (t) {
+    return ((t.assembly && t.assembly.stack) || []).some(function (e) { return e.ref === holderId; });
+  });
+}
+
+/* Cutters that are not a plain cylinder: a chamfer cone, a dovetail that
+   widens toward the tip, a lollipop ball or a T-slot disc — all of them a
+   head at the tip sitting on a neck thinner than the head. One description
+   covers the lot; a plain endmill just has no head. */
+function cutterKind(tool) {
+  var t = String((tool && tool.type) || '').toLowerCase();
+  if (t.indexOf('dovetail') >= 0) return 'dovetail';
+  if (t.indexOf('lollipop') >= 0 || t.indexOf('undercut') >= 0) return 'lolli';
+  if (t.indexOf('t-slot') >= 0 || t.indexOf('keyseat') >= 0 || t.indexOf('woodruff') >= 0) return 'disc';
+  if (t.indexOf('chamfer') >= 0) return 'chamfer';
+  if (t.indexOf('face') >= 0 || t.indexOf('shell') >= 0) return 'face';
+  if (t.indexOf('probe') >= 0) return 'probe';
+  if (t.indexOf('bull') === 0 || t.indexOf('bull') > 0) return 'bull';
+  if (t.indexOf('ball') >= 0) return 'ball';
+  if (t.indexOf('drill') >= 0 || t.indexOf('spot') >= 0 || t.indexOf('center') >= 0) return 'drill';
+  if (t.indexOf('reamer') >= 0) return 'reamer';
+  return 'plain';
+}
+
+function cutterSpec(tool, asm, D, S, foc) {
+  var kind = cutterKind(tool);
+  var c = { kind: kind, D: D, N: D, S: S, headH: 0, neckLen: -1, angle: 0, tipDia: 0 };
+
+  if (kind === 'chamfer') {
+    // the cone that does the cutting, from the tip flat out to full ⌀
+    c.angle = num(asm.angle, 0) || 90;
+    c.tipDia = Math.min(num(asm.tipDia, 0), D);
+    var half = Math.tan(Math.max(c.angle, 5) / 2 * Math.PI / 180);
+    c.headH = half > 0 ? (D - c.tipDia) / 2 / half : 0;
+    c.N = num(asm.neckDia, 0) || D;
+    c.neckLen = num(asm.neckLen, -1);
+    if (c.neckLen < 0) c.neckLen = Math.max(foc - c.headH, 0);
+  } else if (kind === 'dovetail') {
+    c.angle = num(asm.angle, 0) || 60;
+    c.headH = num(asm.headLen, 0) || D * 0.40;
+    c.N = num(asm.neckDia, 0) || D * 0.60;
+  } else if (kind === 'disc') {
+    c.headH = num(asm.headLen, 0) || D * 0.25;
+    c.N = num(asm.neckDia, 0) || D * 0.50;
+  } else if (kind === 'lolli') {
+    c.headH = D;                        // a full ball on the end of the neck
+    c.N = num(asm.neckDia, 0) || D * 0.50;
+  } else if (kind === 'face') {
+    /* A face mill is a body on an arbor, not a shank: the cutting happens at
+       the bottom corner, laid over at the lead angle of the inserts. */
+    c.bodyH = num(asm.bodyH, 0) || D * 0.35;
+    c.lead = num(asm.lead, 0) || 45;              // 90 = square shoulder
+    c.insH = Math.min(num(asm.insH, 0) || D * 0.10, c.bodyH);
+    var lead = Math.max(Math.min(c.lead, 90), 5) * Math.PI / 180;
+    c.tipDia = Math.max(D - 2 * c.insH / Math.tan(lead), 0);
+    c.headH = c.bodyH;
+    c.N = num(asm.arborDia, 0) || D * 0.40;       // what it hangs on
+  } else if (kind === 'probe') {
+    c.styDia = num(asm.styDia, 0) || D * 0.25;
+    c.styLen = num(asm.styLen, 0) || D * 1.20;
+    c.headH = c.styLen;
+    c.N = num(asm.neckDia, 0) || c.styDia * 0.55;
+  } else if (kind === 'bull') {
+    c.cornerRad = Math.min(num(asm.cornerRad, 0) || D * 0.15, D / 2);
+    c.N = num(asm.neckDia, 0) || D;
+  } else if (kind === 'drill') {
+    var t = String(tool.type || '').toLowerCase();
+    c.angle = num(asm.angle, 0) || (t.indexOf('spot') >= 0 ? 90 : 118);
+    c.N = num(asm.neckDia, 0) || D;
+  } else if (kind === 'reamer') {
+    c.angle = num(asm.angle, 0) || 45;            // the lead-in at the nose
+    c.N = num(asm.neckDia, 0) || D;
+  } else {
+    c.N = num(asm.neckDia, 0) || D;
+  }
+
+  if (c.neckLen < 0) c.neckLen = num(asm.neckLen, -1);
+  return c;
+}
+
+/* The one derived object. The dialog, the drawing and both print builders all
+   read this, so the geometry is defined in exactly one place. Never throws —
+   everything goes through num(). */
+function assemblyGeom(tool) {
+  var asm = (tool && tool.assembly) || {};
+  var entries = asm.stack || [];
+  var stickout = num(asm.stickout, 0);
+  var toolDia = num(tool && tool.dia, 0);
+  var shankDia = num(asm.shankDia, 0) || toolDia;
+  var foc = num(tool && tool.foc, 0);
+  var warn = [], missing = 0, maxDia = 0, zMin = 0, z = 0;
+
+  var stages = entries.map(function (e, i) {
+    var comp = holderById(e.ref);
+    var prof = compProfile(comp);
+    var len = comp ? compLength(comp) : num(e.len, 1.0);
+    if (i === 0) zMin = prof.zTop;
+    prof.segs.forEach(function (g) { maxDia = Math.max(maxDia, g.dTop, g.dBot); });
+    var st = { u: e.u, ref: e.ref, comp: comp, missing: !comp,
+      name: comp ? comp.name : 'Missing holder',
+      len: len, z0: z, z1: z + len, prof: prof };
+    if (!comp) missing++;
+    z += len;
+    return st;
+  });
+
+  var holderFront = z;
+  var last = stages.length ? stages[stages.length - 1] : null;
+  maxDia = Math.max(maxDia, toolDia, shankDia);
+
+  var cut = cutterSpec(tool, asm, toolDia, shankDia, foc);
+  maxDia = Math.max(maxDia, cut.N);
+
+  var ok = stages.length > 0 && !missing && stickout > 0;
+  var gauge = ok ? holderFront + stickout : null;
+
+  if (missing) {
+    warn.push(missing + (missing > 1 ? ' components are' : ' component is') +
+      ' missing from the holder library — pick a replacement before the numbers mean anything.');
+  }
+  if (stages.length && stickout <= 0) {
+    warn.push('Set the stickout — how far the cutter hangs out of the holder is what makes the gauge length.');
+  }
+  if (foc > 0 && stickout > 0 && foc > stickout + 0.0005) {
+    warn.push('Flute length ' + fmt3(foc) + ' is longer than the ' + fmt3(stickout) +
+      ' stickout — the flutes would run back inside the holder.');
+  }
+  if (cut.headH > 0 && stickout > 0 && cut.headH > stickout + 0.0005) {
+    warn.push('The cutting head is ' + fmt3(cut.headH) + ' long but only ' + fmt3(stickout) +
+      ' hangs out of the holder.');
+  }
+  if (cut.kind !== 'plain' && cut.kind !== 'chamfer' && cut.N >= toolDia - 0.0005 && toolDia > 0) {
+    warn.push('The neck is not thinner than the head — an undercut tool needs clearance behind the cut.');
+  }
+  if (toolDia > 0 && stickout > toolDia * 4) {
+    warn.push('Stickout is more than 4x the ' + fmt3(toolDia) + ' diameter — check deflection before you trust a heavy cut.');
+  }
+  if (last && last.comp && num(last.comp.gripMin) > 0 && shankDia > 0 && num(tool && tool.oal) > 0) {
+    var grip = num(tool.oal) - stickout;
+    if (grip < num(last.comp.gripMin)) {
+      warn.push('Only ' + fmt3(Math.max(grip, 0)) + ' of shank in the ' +
+        (last.comp.nose || 'holder') + ' — it wants at least ' + fmt3(num(last.comp.gripMin)) + '.');
+    }
+  }
+
+  return {
+    ok: ok, stages: stages, missing: missing, warn: warn,
+    stickout: stickout, holderFront: holderFront, gauge: gauge,
+    foc: foc, toolDia: toolDia, shankDia: shankDia, cut: cut,
+    maxDia: maxDia || 1, zMin: zMin, zMax: holderFront + Math.max(stickout, 0)
+  };
+}
+
+/* ── the drawing ─────────────────────────────────────────────────────────
+
+   Built as an SVG *string*, not DOM nodes. The print sheets splice raw HTML
+   (sheetShell) and buildSetupSheetHtml is synchronous, so a string is the
+   only shape that serves both the screen and the printer from one code path
+   — the screen just drops it into a div with innerHTML. */
+
+var ASM_PAL = {
+  screen: { holder: '#d4d4d7', taper: '#b7b7ba', cutter: '#94bce3', flute: '#597ea3',
+            line: '#2b2b2d', dim: '#41607f', faint: '#7a7a7d', warn: '#a8681f' },
+  print:  { holder: '#dedee0', taper: '#c9c9cc', cutter: '#c8dcf0', flute: '#41607f',
+            line: '#1d1f20', dim: '#41607f', faint: '#5d5d60', warn: '#8a5416' }
+};
+
+function segPath(g, Y, X) {
+  return 'M' + X(g.dTop, -1) + ' ' + Y(g.z0) +
+         'L' + X(g.dTop, 1) + ' ' + Y(g.z0) +
+         'L' + X(g.dBot, 1) + ' ' + Y(g.z1) +
+         'L' + X(g.dBot, -1) + ' ' + Y(g.z1) + 'Z';
+}
+
+/* The cutting end, drawn from the flute start down to the tip. The tip shape
+   is what tells a machinist at a glance which tool this is. */
+function cutterPath(kind, zTop, zTip, dia, Y, X, c) {
+  var r = dia / 2, t = kind;
+  var d = 'M' + X(dia, -1) + ' ' + Y(zTop) + 'L' + X(dia, 1) + ' ' + Y(zTop);
+  if (t === 'ball') {
+    d += 'L' + X(dia, 1) + ' ' + Y(zTip - r) +
+         'A' + (r * (X(dia, 1) - X(dia, -1)) / dia) + ' ' + (Y(zTip) - Y(zTip - r)) + ' 0 0 1 ' + X(dia, -1) + ' ' + Y(zTip - r);
+  } else if (t === 'drill') {
+    var pt = r / Math.tan(Math.max(c && c.angle || 118, 20) / 2 * Math.PI / 180);
+    d += 'L' + X(dia, 1) + ' ' + Y(zTip - pt) + 'L' + X(0, 1) + ' ' + Y(zTip) + 'L' + X(dia, -1) + ' ' + Y(zTip - pt);
+  } else if (t === 'reamer') {
+    var ld = r * 0.35;
+    d += 'L' + X(dia, 1) + ' ' + Y(zTip - ld) + 'L' + X(dia * 0.82, 1) + ' ' + Y(zTip) +
+         'L' + X(dia * 0.82, -1) + ' ' + Y(zTip) + 'L' + X(dia, -1) + ' ' + Y(zTip - ld);
+  } else if (t === 'bull') {
+    var cr = Math.min((c && c.cornerRad) || r * 0.3, r);
+    d += 'L' + X(dia, 1) + ' ' + Y(zTip - cr) + 'L' + X(dia - cr * 2, 1) + ' ' + Y(zTip) +
+         'L' + X(dia - cr * 2, -1) + ' ' + Y(zTip) + 'L' + X(dia, -1) + ' ' + Y(zTip - cr);
+  } else {
+    d += 'L' + X(dia, 1) + ' ' + Y(zTip) + 'L' + X(dia, -1) + ' ' + Y(zTip);
+  }
+  return d + 'Z';
+}
+
+function assemblySvg(tool, opts) {
+  opts = opts || {};
+  var w = opts.w || 340, h = opts.h || 430;
+  var labels = opts.labels !== false;
+  var dias = opts.dias === undefined ? labels : !!opts.dias;
+  var p = ASM_PAL[opts.theme === 'print' ? 'print' : 'screen'];
+  var g = assemblyGeom(tool);
+  if (!g.stages.length) return '';
+
+  var padT = labels ? 16 : 6, padB = labels ? 16 : 6;
+  var padL = labels ? Math.max(38, Math.round(w * 0.15)) : 4;
+  var padR = labels ? Math.max(56, Math.round(w * 0.24)) : 4;
+  var zMin = Math.min(g.zMin, 0), zMax = g.zMax;
+  var totalL = Math.max(zMax - zMin, 0.1);
+  var s = Math.min((h - padT - padB) / totalL, (w - padL - padR) / Math.max(g.maxDia, 0.4));
+  var cx = padL + (w - padL - padR) / 2;
+
+  /* The left margin is a single column of callouts, so they are collected and
+     placed at the end: the gauge line wins, then the interface Z's, then the
+     diameters, and anything that would sit on top of one already placed is
+     dropped rather than overprinted. */
+  var leftLabels = [];
+  function leftTxt(prio, y, str) { leftLabels.push({ p: prio, y: y, s: str }); }
+  function flushLeft() {
+    var used = [];
+    leftLabels.sort(function (a, b) { return a.p - b.p || a.y - b.y; }).forEach(function (l) {
+      for (var i = 0; i < used.length; i++) { if (Math.abs(used[i] - l.y) < 9) return; }
+      used.push(l.y);
+      txt(4, l.y, l.s, 'start', l.p === 0 ? 8 : 8.5, l.p === 0 ? p.dim : p.faint);
+    });
+  }
+
+  /* Diameters sit on the part they measure, centred on the axis and on a light
+     plate so they stay readable over the steel and over the centreline. */
+  var midLabels = [];
+  function midTxt(y, str) { midLabels.push({ y: y, s: str }); }
+  function flushMid() {
+    var used = [];
+    midLabels.sort(function (a, b) { return a.y - b.y; }).forEach(function (l) {
+      for (var i = 0; i < used.length; i++) { if (Math.abs(used[i] - l.y) < 11) return; }
+      used.push(l.y);
+      var wpx = l.s.length * 4.7 + 7;
+      push('<rect x="' + (cx - wpx / 2) + '" y="' + (l.y - 8) + '" width="' + wpx +
+        '" height="10.5" fill="#ffffff" opacity="0.82"/>');
+      txt(cx, l.y, l.s, 'middle', 8.5, p.line);
+    });
+  }
+  function Y(z) { return Math.round((padT + (z - zMin) * s) * 10) / 10; }
+  function X(dia, side) { return Math.round((cx + side * dia / 2 * s) * 10) / 10; }
+
+  var o = [];
+  function push(str) { o.push(str); }
+  function txt(x, y, str, anchor, size, fill) {
+    push('<text x="' + x + '" y="' + y + '" text-anchor="' + (anchor || 'start') +
+      '" font-family="ui-sans-serif,system-ui,sans-serif" font-size="' + (size || 9) +
+      '" fill="' + (fill || p.faint) + '">' + esc(str) + '</text>');
+  }
+  function arrow(x, y, dir) {   // dir 1 = pointing down
+    return '<path d="M' + x + ' ' + y + 'L' + (x - 3) + ' ' + (y - 5 * dir) +
+      'L' + (x + 3) + ' ' + (y - 5 * dir) + 'Z" fill="' + p.dim + '"/>';
+  }
+
+  /* centreline — the dash pattern is the standard C-L, and it is the single
+     cheapest thing that makes this read as a tool print rather than a shape */
+  push('<line x1="' + cx + '" y1="' + (padT - 4) + '" x2="' + cx + '" y2="' + (h - padB + 4) +
+    '" stroke="' + p.line + '" stroke-width="0.7" opacity="0.4" stroke-dasharray="9 3 2 3"/>');
+
+  /* the holder stack */
+  g.stages.forEach(function (st) {
+    var fill = st.comp && st.comp.kind === 'taper' ? p.taper : p.holder;
+    if (st.missing) {
+      var hw = Math.max(g.maxDia, 0.4) / 3 * s;
+      push('<rect x="' + (cx - hw) + '" y="' + Y(st.z0) + '" width="' + (hw * 2) +
+        '" height="' + (Y(st.z1) - Y(st.z0)) + '" fill="none" stroke="' + p.warn +
+        '" stroke-width="1" stroke-dasharray="4 3"/>');
+      return;
+    }
+    st.prof.segs.forEach(function (seg) {
+      push('<path d="' + segPath({ z0: seg.z0 + st.z0, z1: seg.z1 + st.z0, dTop: seg.dTop, dBot: seg.dBot }, Y, X) +
+        '" fill="' + fill + '" stroke="' + p.line + '" stroke-width="0.9" stroke-linejoin="round"/>');
+    });
+    /* the face this stage hands off at, and its Z from the gauge line */
+    if (labels) {
+      push('<line x1="' + Math.max(padL - 46, 1) + '" y1="' + Y(st.z1) + '" x2="' + X(g.maxDia, -1) +
+        '" y2="' + Y(st.z1) + '" stroke="' + p.faint + '" stroke-width="0.5" opacity="0.55"/>');
+      leftTxt(1, Y(st.z1) - 2, 'Z ' + fmt3(st.z1));
+    }
+    /* one label per section — the taper above the gauge line is standard for
+       its designation, so it is drawn but not dimensioned */
+    if (dias) {
+      st.prof.segs.forEach(function (seg) {
+        var z0 = seg.z0 + st.z0, z1 = seg.z1 + st.z0;
+        if (z1 <= 0.0005 || Y(z1) - Y(z0) <= 12) return;
+        var tapered = Math.abs(seg.dTop - seg.dBot) > 0.0005;
+        var lbl = tapered ? '⌀' + fmt3(seg.dTop) + '→' + fmt3(seg.dBot) : '⌀' + fmt3(seg.dTop);
+        if (Math.max(seg.dTop, seg.dBot) > 0) midTxt((Y(z0) + Y(z1)) / 2 + 3, lbl);
+      });
+    }
+  });
+
+  /* the cutter: shank, flutes, tip — plus the hidden length up inside the
+     holder in the usual dashed hidden-line convention */
+  if (g.stickout > 0 && g.toolDia > 0) {
+    var c = g.cut;
+    var tip = g.holderFront + g.stickout;
+    var buried = g.foc > g.stickout + 0.0005;
+    var edge = buried ? p.warn : p.line;
+    var hid0 = g.holderFront - Math.min(0.9, g.holderFront);
+    push('<path d="' + segPath({ z0: hid0, z1: g.holderFront, dTop: g.shankDia, dBot: g.shankDia }, Y, X) +
+      '" fill="none" stroke="' + p.line + '" stroke-width="0.7" stroke-dasharray="3 2" opacity="0.55"/>');
+
+    var solid = function (z0, z1, dTop, dBot, dia) {
+      if (z1 - z0 <= 0.0005) return;
+      push('<path d="' + segPath({ z0: z0, z1: z1, dTop: dTop, dBot: dBot }, Y, X) +
+        '" fill="' + p.cutter + '" stroke="' + edge + '" stroke-width="0.9"/>');
+      if (dias && dia > 0 && Y(z1) - Y(z0) > 12) midTxt((Y(z0) + Y(z1)) / 2 + 3, '⌀' + fmt3(dia));
+    };
+    /* the hatch is cosmetic, but it is what says "this end cuts" */
+    var hatch = function (z0, z1, dia) {
+      var n = Math.max(2, Math.min(9, Math.round((Y(z1) - Y(z0)) / 9)));
+      for (var i = 1; i <= n; i++) {
+        var ya = Y(z0) + (Y(z1) - Y(z0)) * (i / (n + 1));
+        push('<line x1="' + X(dia, -1) + '" y1="' + ya + '" x2="' + X(dia, 1) + '" y2="' + (ya - 4) +
+          '" stroke="' + (buried ? p.warn : p.flute) + '" stroke-width="0.6" opacity="0.7"/>');
+      }
+    };
+
+    if (c.headH > 0) {
+      /* a head at the tip on a neck thinner than it — dovetail, lollipop and
+         T-slot, and the chamfer cone, which is the same idea the other way up */
+      var headTop = Math.max(tip - c.headH, g.holderFront);
+      var neckTop = c.neckLen >= 0 ? Math.max(headTop - c.neckLen, g.holderFront) : g.holderFront;
+      solid(g.holderFront, neckTop, g.shankDia, g.shankDia, g.shankDia);
+      solid(neckTop, headTop, c.N, c.N, c.N);
+      if (c.kind === 'lolli') {
+        var cyz = tip - c.D / 2;
+        push('<ellipse cx="' + cx + '" cy="' + Y(cyz) + '" rx="' + (X(c.D, 1) - cx) + '" ry="' +
+          (Y(tip) - Y(cyz)) + '" fill="' + p.cutter + '" stroke="' + edge + '" stroke-width="0.9"/>');
+        if (dias) midTxt(Y(cyz) + 3, '⌀' + fmt3(c.D));
+      } else if (c.kind === 'chamfer') {
+        solid(headTop, tip, c.D, Math.min(c.tipDia, c.D), 0);
+        if (dias && Y(tip) - Y(headTop) > 12) midTxt((Y(headTop) + Y(tip)) / 2 + 3, '⌀' + fmt3(c.D) + '  ' + fmt3(c.angle) + '°');
+        hatch(headTop, tip, c.D * 0.7);
+      } else if (c.kind === 'dovetail') {
+        solid(headTop, tip, c.N, c.D, 0);
+        if (dias && Y(tip) - Y(headTop) > 12) midTxt((Y(headTop) + Y(tip)) / 2 + 3, '⌀' + fmt3(c.D) + '  ' + fmt3(c.angle) + '°');
+        hatch(headTop, tip, c.D * 0.8);
+      } else if (c.kind === 'face') {
+        /* body, then the corner laid over at the insert's lead angle */
+        var cornerTop = tip - c.insH;
+        solid(headTop, cornerTop, c.D, c.D, c.D);
+        solid(cornerTop, tip, c.D, c.tipDia, 0);
+        if (dias && Y(tip) - Y(cornerTop) > 12) midTxt((Y(cornerTop) + Y(tip)) / 2 + 3, fmt3(c.lead) + '°');
+        hatch(cornerTop, tip, c.D * 0.9);
+      } else if (c.kind === 'probe') {
+        var ballZ = tip - c.styDia / 2;
+        solid(headTop, ballZ, c.styDia, c.styDia, c.styDia);
+        push('<ellipse cx="' + cx + '" cy="' + Y(ballZ) + '" rx="' + (X(c.styDia, 1) - cx) + '" ry="' +
+          (Y(tip) - Y(ballZ)) + '" fill="' + p.cutter + '" stroke="' + edge + '" stroke-width="0.9"/>');
+      } else {
+        solid(headTop, tip, c.D, c.D, c.D);
+        hatch(headTop, tip, c.D);
+      }
+    } else {
+      var fl0 = g.foc > 0 ? Math.max(tip - g.foc, g.holderFront - 0.001) : tip;
+      solid(g.holderFront, fl0, g.shankDia, g.shankDia,
+        Math.abs(g.shankDia - g.toolDia) > 0.0005 ? g.shankDia : 0);
+      push('<path d="' + cutterPath(c.kind, fl0, tip, g.toolDia, Y, X, c) +
+        '" fill="' + p.cutter + '" stroke="' + edge + '" stroke-width="' + (buried ? 1.3 : 0.9) + '"/>');
+      if (dias && Y(tip) - Y(fl0) > 12) midTxt((Y(fl0) + Y(tip)) / 2 + 3, '⌀' + fmt3(g.toolDia));
+      hatch(fl0, tip, g.toolDia);
+    }
+  }
+
+  /* the gauge line itself — the datum every number here is measured from.
+     A thumbnail is a silhouette, so it does without. */
+  if (labels) {
+    push('<line x1="' + Math.max(padL - 50, 1) + '" y1="' + Y(0) + '" x2="' + Math.min(w - padR + 10, w - 1) + '" y2="' + Y(0) +
+      '" stroke="' + p.dim + '" stroke-width="1" stroke-dasharray="6 3"/>');
+    leftTxt(0, Y(0) - 3, 'GAUGE LINE');
+  }
+  flushLeft();
+  flushMid();
+
+  /* dimensions, right margin — three at most, or a 340px column turns to mud */
+  if (labels && g.ok) {
+    var xg = w - padR + 44, xs = w - padR + 10;
+    push('<line x1="' + xs + '" y1="' + Y(g.holderFront) + '" x2="' + xs + '" y2="' + Y(g.gauge) +
+      '" stroke="' + p.dim + '" stroke-width="0.9"/>');
+    push(arrow(xs, Y(g.holderFront), -1) + arrow(xs, Y(g.gauge), 1));
+    txt(xs + 4, (Y(g.holderFront) + Y(g.gauge)) / 2 + 3, fmt3(g.stickout), 'start', 8.5, p.dim);
+    push('<line x1="' + xg + '" y1="' + Y(0) + '" x2="' + xg + '" y2="' + Y(g.gauge) +
+      '" stroke="' + p.dim + '" stroke-width="0.9"/>');
+    push(arrow(xg, Y(0), -1) + arrow(xg, Y(g.gauge), 1));
+    txt(w - 2, Y(0) - 5, 'GL ' + fmt3(g.gauge), 'end', 9, p.dim);
+  }
+  if (labels && g.toolDia > 0) {
+    txt(cx, Y(g.zMax) + 12, '⌀' + fmt3(g.toolDia) + (g.foc > 0 ? '  LOC ' + fmt3(g.foc) : ''), 'middle', 8.5, p.faint);
+  }
+
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h +
+    '" viewBox="0 0 ' + w + ' ' + h + '" style="max-width:100%;height:auto" role="img">' + o.join('') + '</svg>';
+}
+
+/* The screen path parses the same string. innerHTML in an HTML document gives
+   <svg> children the SVG namespace on its own, so there is no second
+   createElementNS code path to drift out of step with the printed one. */
+function assemblyDrawing(tool, opts) {
+  var host = el('div', { style: 'line-height:0' });
+  var markup = assemblySvg(tool, opts);
+  if (!markup) return el('div', { class: 'text-muted', style: 'font-size:12px;padding:var(--space-6) 0;text-align:center',
+    text: 'Nothing stacked yet — start with the taper.' });
+  host.innerHTML = markup;
+  return host;
 }
 
 function jobById(id) { return state.jobs.filter(function (j) { return j.id === id; })[0] || null; }
@@ -1107,6 +1831,8 @@ function patchJob(id, patch) {
 function openJob(id) { set({ view: 'job', jobId: id, dialog: null, pickSearch: '' }); }
 
 function closeDialog() {
+  state.hDraft = null;
+  state.hDraftError = '';
   set({ dialog: conflict ? { kind: 'conflict' } : null, draft: null, draftError: '' });
 }
 
@@ -1139,7 +1865,11 @@ function printCss() {
       'letter-spacing:.06em;text-transform:uppercase}' +
     '.notes p{margin:0;white-space:pre-wrap}' +
     '.sign{margin-top:12px;display:grid;gap:10px;font-size:9pt}' +
-    'thead{display:table-header-group}';
+    'thead{display:table-header-group}' +
+    'svg{display:block}' +
+    '.asm{float:right;margin:0 0 6px 10px;border:1px solid #d4d4d7;padding:4px;break-inside:avoid}' +
+    '.asm text{font-family:"Barlow Condensed","Arial Narrow",sans-serif}' +
+    'td.asmcell{width:70px;padding:2px}';
 }
 
 function sheetShell(title, kicker, heading, body) {
@@ -1155,10 +1885,13 @@ function shopName() { return state.settings.shopName || 'Machine shop'; }
 /* ── the job setup sheet ─────────────────────────────────────────────── */
 
 function buildSetupSheetHtml(job) {
+  var diagrams = !!state.settings.setupDiagrams;
   var rows = (job.tools || []).map(function (x) {
     var t = state.tools.filter(function (y) { return y.id === x.toolId; })[0];
     if (!t) return '';
-    return '<tr><td class="n">' + esc(t.tnum) + '</td><td>' + esc(t.desc) +
+    var pic = diagrams ? '<td class="asmcell">' + (t.machine !== 'lathe'
+      ? assemblySvg(t, { w: 64, h: 104, labels: false, theme: 'print' }) : '') + '</td>' : '';
+    return '<tr>' + pic + '<td class="n">' + esc(t.tnum) + '</td><td>' + esc(t.desc) +
       (t.notes ? '<div class="sub">' + esc(t.notes) + '</div>' : '') +
       '</td><td>' + esc(spec(t)) +
       '</td><td>' + esc(t.machine === 'lathe' ? t.shank : t.holder) + '</td><td>' + esc(x.note) + '</td></tr>';
@@ -1172,8 +1905,9 @@ function buildSetupSheetHtml(job) {
     '<div><span>Machine</span><b>' + esc(job.machine || '—') + '</b></div>' +
     '<div><span>Last run</span><b>' + esc(job.lastRun || '—') + '</b></div>' +
     '<div><span>Tools</span><b>' + (job.tools || []).length + '</b></div></div>' +
-    '<table><thead><tr><th>Stn</th><th>Description</th><th>Spec</th><th>Holder</th><th>Setup note</th></tr></thead><tbody>' +
-    (rows || '<tr><td colspan="5">No tools assigned.</td></tr>') + '</tbody></table>' +
+    '<table><thead><tr>' + (diagrams ? '<th></th>' : '') +
+    '<th>Stn</th><th>Description</th><th>Spec</th><th>Holder</th><th>Setup note</th></tr></thead><tbody>' +
+    (rows || '<tr><td colspan="' + (diagrams ? 6 : 5) + '">No tools assigned.</td></tr>') + '</tbody></table>' +
     (job.notes ? '<div class="notes"><h3>Setup notes</h3><p>' + esc(job.notes) + '</p></div>' : '') +
     signoff;
   return sheetShell('Setup sheet ' + job.jobno, shopName() + ' — setup sheet', job.jobno || 'Untitled job', body);
@@ -1215,8 +1949,19 @@ async function buildToolSheetHtml(tool) {
   var img = photo
     ? '<img src="' + photo + '" style="max-width:88mm;max-height:80mm;border:1px solid #b7b7ba;margin-top:8px">'
     : '';
+  var asmSvg = tool.machine !== 'lathe' ? assemblySvg(tool, { w: 190, h: 270, theme: 'print' }) : '';
+  var asmGeom = asmSvg ? assemblyGeom(tool) : null;
+  var asmTable = asmGeom && asmGeom.stages.length
+    ? '<table style="margin-top:8px"><thead><tr><th>Assembly</th><th>Projection</th><th>Z from gauge line</th></tr></thead><tbody>' +
+      asmGeom.stages.map(function (st) {
+        return '<tr><td>' + esc(st.name) + '</td><td>' + fmt3(st.len) + '</td><td>' + fmt3(st.z1) + '</td></tr>';
+      }).join('') +
+      (asmGeom.ok ? '<tr><td>Cutter (stickout)</td><td>' + fmt3(asmGeom.stickout) + '</td><td>' + fmt3(asmGeom.gauge) + '</td></tr>' : '') +
+      '</tbody></table>'
+    : '';
   var body =
-    '<div class="meta">' + (meta || '<div><span>No details recorded</span></div>') + '</div>' +
+    (asmSvg ? '<div class="asm">' + asmSvg + '</div>' : '') +
+    '<div class="meta">' + (meta || '<div><span>No details recorded</span></div>') + '</div>' + asmTable +
     (tool.notes ? '<div class="notes"><h3>Tool notes</h3><p>' + esc(tool.notes) + '</p></div>' : '') +
     used + img;
   return sheetShell('Tool ' + tool.tnum, shopName() + ' — ' + tool.machine + ' tool', tool.tnum + '  ' + (tool.desc || ''), body);
@@ -1276,6 +2021,24 @@ function printToolCard(tool) {
 
 function printLibrary(mt, list) { finishPrint(openPrintWindow(), buildLibrarySheetHtml(mt, list)); }
 
+function buildHolderSheetHtml(list) {
+  var rows = list.map(function (h) {
+    return '<tr><td>' + esc(h.name) + (h.notes ? '<div class="sub">' + esc(h.notes) + '</div>' : '') +
+      '</td><td>' + esc(holderKindLabel(h.kind)) + '</td><td>' + esc(h.taper || '') +
+      '</td><td>' + esc(h.nose || '') + '</td><td>' + fmt3(compLength(h)) +
+      '</td><td>' + esc([h.vendor, h.partno].filter(Boolean).join(' · ')) +
+      '</td><td>' + assemblyUsage(h.id).length + '</td></tr>';
+  }).join('');
+  var body =
+    '<div class="meta"><div><span>Holders</span><b>' + list.length + '</b></div></div>' +
+    '<table><thead><tr><th>Name</th><th>Kind</th><th>Taper</th><th>Accepts</th><th>Projection</th>' +
+    '<th>Vendor · part #</th><th>Tools</th></tr></thead><tbody>' +
+    (rows || '<tr><td colspan="7">Nothing in the library.</td></tr>') + '</tbody></table>';
+  return sheetShell('Holder library', shopName() + ' — holder library', 'Holders', body);
+}
+
+function printHolders(list) { finishPrint(openPrintWindow(), buildHolderSheetHtml(list)); }
+
 /* ══════════════════════════════════════════════════════════════════════
    Views
    ══════════════════════════════════════════════════════════════════ */
@@ -1290,7 +2053,7 @@ function syncLabel() {
 function syncStatusText() {
   if (!FS_SUPPORTED) return 'no folder access in this browser';
   if (!store.dir) return 'not connected';
-  if (!store.connected) return 'folder remembered — needs a click';
+  if (!store.connected) return 'folder remembered — click to reconnect';
   var parts = ['watching'];
   if (store.lastRemote) {
     parts.push('updated ' + store.lastRemote.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -1315,7 +2078,13 @@ function onSyncClick() {
     return;
   }
   if (!store.dir) { connectFolder(); return; }
-  if (!store.connected) { grantAndLoad(); return; }
+  if (!store.connected) {
+    grantAndLoad().catch(function (e) {
+      store.error = 'Reconnect failed: ' + (e && e.message ? e.message : String(e));
+      render();
+    });
+    return;
+  }
   flushNow().then(loadFromDisk);
 }
 
@@ -1350,7 +2119,8 @@ function header() {
 
   var links = el('div', { style: 'display:flex;align-items:center;gap:var(--space-6)' },
     link('Dashboard', 'dash'),
-    link('Mill tools', 'tools', 'mill'), link('Lathe tools', 'tools', 'lathe'),
+    visibleRegistries().map(function (g) { return link(registryLabel(g) + ' tools', 'tools', g); }),
+    visibleRegistries().indexOf('mill') >= 0 ? link('Holders', 'holders') : null,
     visibleTypes().map(function (t) { return link(t.label + ' jobs', 'jobs', t.value); }),
     link('Settings', 'settings')
   );
@@ -1431,15 +2201,11 @@ function viewDash() {
     el('h2', { style: 'margin:0', text: 'Shop floor' })
   ));
 
-  var millCount = state.tools.filter(function (t) { return t.machine === 'mill'; }).length;
-  var latheCount = state.tools.filter(function (t) { return t.machine === 'lathe'; }).length;
-
-  var cards = [
-    statCard('Mill tools', millCount, 'numbered in the mill sequence',
-      function () { set({ view: 'tools', machineType: 'mill', search: '' }); }),
-    statCard('Lathe tools', latheCount, 'numbered in the lathe sequence',
-      function () { set({ view: 'tools', machineType: 'lathe', search: '' }); })
-  ].concat(visibleTypes().map(function (t) {
+  var cards = visibleRegistries().map(function (g) {
+    var n = state.tools.filter(function (t) { return t.machine === g; }).length;
+    return statCard(registryLabel(g) + ' tools', n, 'numbered in the ' + registryLabel(g).toLowerCase() + ' sequence',
+      function () { set({ view: 'tools', machineType: g, search: '' }); });
+  }).concat(visibleTypes().map(function (t) {
     return statCard(t.label + ' jobs', jobsOfType(t.value).length, 'setups on the ' + t.label.toLowerCase() + 's',
       function () { set({ view: 'jobs', jobType: t.value }); });
   }));
@@ -1647,6 +2413,7 @@ function viewSettings() {
   }
   pBox.appendChild(toggle('Show vendor column in the registry', 'showVendor'));
   pBox.appendChild(toggle('Sign-off lines on setup sheets', 'signoffLines'));
+  pBox.appendChild(toggle('Assembly diagrams on setup sheets', 'setupDiagrams'));
 
   return el('div', {},
     el('div', { style: 'margin-bottom:var(--space-8)' },
@@ -1673,8 +2440,16 @@ function viewTools() {
   var showVendor = state.settings.showVendor !== false;
   var fields = fieldsFor(mt);
   // Notes and the part number live in the tool's own dialog, not the grid.
+  var lathe = mt === 'lathe';
   var colKeys = fields.map(function (f) { return f.k; })
-    .filter(function (k) { return k !== 'partno' && k !== 'notes' && (showVendor || k !== 'vendor'); });
+    .filter(function (k) {
+      if (k === 'partno' || k === 'notes') return false;
+      if (!showVendor && k === 'vendor') return false;
+      // Gauge length is the assembly's own number, printed in that cell, and
+      // the holder is pulled out to sit next to it.
+      if (!lathe && (k === 'gauge' || k === 'holder')) return false;
+      return true;
+    });
 
   var q = state.search.trim().toLowerCase();
   var library = sortTools(state.tools.filter(function (t) { return t.machine === mt; }))
@@ -1719,7 +2494,12 @@ function viewTools() {
     var f = fields.filter(function (x) { return x.k === k; })[0] || {};
     thr.appendChild(el('th', { text: f.label || k }));
   });
-  thr.appendChild(el('th', { text: 'Photo' }));
+  if (!lathe) {
+    thr.appendChild(el('th', { text: 'Holder' }));
+    thr.appendChild(el('th', { text: 'Assembly' }));
+  } else {
+    thr.appendChild(el('th', { text: 'Photo' }));
+  }
   thr.appendChild(el('th', { text: 'Used in' }));
   thr.appendChild(el('th', {}));
   table.appendChild(el('thead', {}, thr));
@@ -1729,18 +2509,23 @@ function viewTools() {
     var used = usage(t.id);
     // A tool has no page of its own — its detail is the edit dialog.
     var tr = clickable(el('tr', {}), function () {
-      set({ dialog: { kind: 'tool' }, draft: Object.assign({}, t), draftError: '' });
+      set({ dialog: { kind: 'tool' }, draft: cloneTool(t), draftError: '' });
     });
     colKeys.forEach(function (k) {
       tr.appendChild(el('td', { style: 'font-variant-numeric:tabular-nums', text: cellVal(t, k) }));
     });
-    tr.appendChild(el('td', {}, toolPhotoButton(t)));
+    if (!lathe) {
+      tr.appendChild(el('td', { text: t.holder || '—' }));
+      tr.appendChild(el('td', {}, assemblyCell(t)));
+    } else {
+      tr.appendChild(el('td', {}, toolPhotoButton(t)));
+    }
     tr.appendChild(el('td', {}, el('button', { class: 'btn btn-ghost', style: 'font-size:13px',
       text: used.length ? 'Used in (' + used.length + ')' : 'Not used',
       onclick: function () { set({ dialog: { kind: 'usage', toolId: t.id } }); } })));
     tr.appendChild(el('td', {}, el('div', { style: 'display:flex;gap:var(--space-2);justify-content:flex-end' },
       el('button', { class: 'btn btn-ghost', text: 'Edit', onclick: function () {
-        set({ dialog: { kind: 'tool' }, draft: Object.assign({}, t), draftError: '' });
+        set({ dialog: { kind: 'tool' }, draft: cloneTool(t), draftError: '' });
       } }),
       el('button', { class: 'btn btn-ghost', text: 'Print', onclick: function () { printToolCard(t); } }),
       el('button', { class: 'btn btn-ghost', text: 'Delete', onclick: function () { confirmDeleteTool(t); } })
@@ -1755,6 +2540,20 @@ function viewTools() {
   }
 
   return el('div', {}, head, box);
+}
+
+/* A thumbnail silhouette is enough to grab the right holder off the rack;
+   the numbers live in the tool dialog. */
+function assemblyCell(t) {
+  var g = assemblyGeom(t);
+  if (!g.stages.length) {
+    return el('span', { class: 'text-muted', style: 'font-size:12px', text: '—' });
+  }
+  var wrap = el('div', { style: 'display:flex;align-items:center;gap:var(--space-2)' },
+    assemblyDrawing(t, { w: 26, h: 54, labels: false }),
+    el('span', { class: 'text-muted', style: 'font-size:11px;font-variant-numeric:tabular-nums',
+      text: g.ok ? 'GL ' + fmt3(g.gauge) : (g.missing ? '⚠' : 'no stickout') }));
+  return wrap;
 }
 
 /* Nothing is shown inline — the photo (and the tool's notes) open on click. */
@@ -1790,6 +2589,235 @@ function confirmDeleteTool(t) {
       set({ dialog: null });
     }
   } });
+}
+
+/* ── holder library ──────────────────────────────────────────────────── */
+
+function blankHolder() {
+  return { id: uid(), kind: 'taper', name: '', taper: 'CAT50', nose: '', gripMin: '',
+    segs: [{ _u: uid(), len: '0.750', dTop: '3.875', dBot: '3.875' }], vendor: '', partno: '', notes: '' };
+}
+
+function cloneHolder(h) {
+  var c = JSON.parse(JSON.stringify(h));
+  c.segs = (c.segs || []).map(function (g) { return Object.assign({ _u: uid() }, g); });
+  return c;
+}
+
+function viewHolders() {
+  var q = state.holderSearch.trim().toLowerCase();
+  var list = state.holders.filter(function (h) {
+    return !q || [h.name, h.kind, h.taper, h.nose, h.vendor, h.partno].some(function (v) {
+      return String(v || '').toLowerCase().indexOf(q) >= 0;
+    });
+  }).slice().sort(function (a, b) {
+    return String(a.kind).localeCompare(String(b.kind)) || String(a.name).localeCompare(String(b.name));
+  });
+
+  var head = el('div', { style: 'display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-6);margin-bottom:var(--space-6);flex-wrap:wrap' },
+    el('div', {},
+      el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase', text: 'Shop' }),
+      el('h2', { style: 'margin:0', text: 'Holders' }),
+      el('p', { class: 'text-muted', style: 'font-size:13px;margin:var(--space-2) 0 0;max-width:74ch',
+        text: 'Tapers, extensions and collets, dimensioned once and stacked onto any tool. The shipped sizes are nominal — correct them against what is actually in the crib.' })
+    ),
+    el('div', { style: 'display:flex;gap:var(--space-2);align-items:center' },
+      el('input', { class: 'input', style: 'width:240px', 'data-k': 'holderSearch', placeholder: 'Search name, taper, vendor',
+        value: state.holderSearch, oninput: function (e) { set({ holderSearch: e.target.value }); } }),
+      el('button', { class: 'btn btn-secondary', text: 'Print list', onclick: function () { printHolders(list); } }),
+      (function () {
+        var b = el('button', { class: 'btn btn-primary blueprint', onclick: function () {
+          set({ dialog: { kind: 'holder' }, hDraft: blankHolder(), hDraftError: '' });
+        } });
+        corners().forEach(function (c) { b.appendChild(c); });
+        b.appendChild(document.createTextNode('+ Add holder'));
+        return b;
+      })()
+    )
+  );
+
+  var box = frame('padding:var(--space-4)');
+  var table = el('table', { class: 'table' });
+  table.appendChild(el('thead', {}, el('tr', {},
+    el('th', { text: 'Name' }), el('th', { text: 'Kind' }), el('th', { text: 'Taper' }),
+    el('th', { text: 'Accepts' }), el('th', { text: 'Projection' }), el('th', { text: 'Vendor · part #' }),
+    el('th', { text: 'Used on' }), el('th', {}))));
+
+  var tbody = el('tbody');
+  list.forEach(function (h) {
+    var used = assemblyUsage(h.id);
+    var tr = clickable(el('tr', {}), function () {
+      set({ dialog: { kind: 'holder' }, hDraft: cloneHolder(h), hDraftError: '' });
+    });
+    [h.name, holderKindLabel(h.kind), h.taper || '—', h.nose || '—', fmt3(compLength(h)),
+     [h.vendor, h.partno].filter(Boolean).join(' · ') || '—',
+     used.length ? used.length + ' tool' + (used.length > 1 ? 's' : '') : '—'
+    ].forEach(function (v) {
+      tr.appendChild(el('td', { style: 'font-variant-numeric:tabular-nums', text: v }));
+    });
+    tr.appendChild(el('td', {}, el('div', { style: 'display:flex;gap:var(--space-2);justify-content:flex-end' },
+      el('button', { class: 'btn btn-ghost', text: 'Edit', onclick: function () {
+        set({ dialog: { kind: 'holder' }, hDraft: cloneHolder(h), hDraftError: '' });
+      } }),
+      el('button', { class: 'btn btn-ghost', text: 'Duplicate', onclick: function () {
+        var c = cloneHolder(h); c.id = uid(); c.name = h.name + ' (copy)';
+        set({ dialog: { kind: 'holder' }, hDraft: c, hDraftError: '' });
+      } }),
+      el('button', { class: 'btn btn-ghost', text: 'Delete', onclick: function () { confirmDeleteHolder(h); } })
+    )));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  box.appendChild(table);
+  if (!list.length) {
+    box.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;padding:var(--space-6) 0 var(--space-3);margin:0;text-align:center',
+      text: 'Nothing in the library yet. Add the taper that goes in the spindle first.' }));
+  }
+
+  return el('div', {}, head, box);
+}
+
+function confirmDeleteHolder(h) {
+  var used = assemblyUsage(h.id);
+  set({ dialog: {
+    kind: 'confirm',
+    title: used.length ? 'This holder is in use' : 'Delete ' + (h.name || 'holder') + '?',
+    body: used.length
+      ? h.name + ' is stacked on ' + used.length + ' tool' + (used.length > 1 ? 's' : '') + ' (' +
+        used.map(function (t) { return t.tnum; }).join(', ') + '). Those assemblies keep the stage but lose its dimensions until you pick a replacement.'
+      : h.name + ' will be removed from the library.',
+    okLabel: used.length ? 'Delete anyway' : 'Delete',
+    action: function () {
+      state.holders = state.holders.filter(function (x) { return x.id !== h.id; });
+      markHolders();
+      set({ dialog: null });
+    }
+  } });
+}
+
+var HOLDER_FIELDS = [
+  { k: 'name', label: 'Name', ph: 'CAT50 ER32 x 4.00' },
+  { k: 'kind', label: 'Kind', options: HOLDER_KINDS },
+  { k: 'taper', label: 'Taper', options: [{ value: '', label: '—' }].concat(TAPER_LIST.map(function (t) { return { value: t, label: t }; })) },
+  { k: 'nose', label: 'Accepts', ph: 'ER32' },
+  { k: 'gripMin', label: 'Min. grip', ph: '0.750' },
+  { k: 'vendor', label: 'Vendor', ph: 'Lyndex' },
+  { k: 'partno', label: 'Vendor part #', ph: 'C5011-0750' },
+  { k: 'notes', label: 'Notes', ph: 'Regrind history, which rack it lives on, anything worth knowing.', long: true }
+];
+
+function holderDialog() {
+  var h = state.hDraft;
+  if (!h) return null;
+  var back = state.dialog.back;
+
+  var grid = el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-3)' });
+  HOLDER_FIELDS.forEach(function (f) {
+    var control;
+    if (f.options) {
+      control = select({ class: 'input', 'data-k': 'hd-' + f.k, onchange: function (e) { h[f.k] = e.target.value; render(); } },
+        f.options, h[f.k] == null ? '' : h[f.k]);
+    } else if (f.long) {
+      control = el('textarea', { class: 'input', style: 'min-height:60px', 'data-k': 'hd-' + f.k,
+        placeholder: f.ph || '', value: h[f.k] || '', oninput: function (e) { h[f.k] = e.target.value; } });
+    } else {
+      control = el('input', { class: 'input', 'data-k': 'hd-' + f.k, placeholder: f.ph || '', value: h[f.k] == null ? '' : h[f.k],
+        oninput: function (e) { h[f.k] = e.target.value; render(); } });
+    }
+    grid.appendChild(el('div', { class: 'field', style: f.long ? 'grid-column:1/-1' : '' },
+      el('label', { text: f.label }), control));
+  });
+
+  /* the profile: one row per frustum, spindle end first */
+  var segs = el('div', { style: 'display:grid;gap:var(--space-2)' });
+  segs.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr 28px;gap:var(--space-2)' },
+    el('label', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.08em;text-transform:uppercase', text: 'Length' }),
+    el('label', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.08em;text-transform:uppercase', text: '⌀ back' }),
+    el('label', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.08em;text-transform:uppercase', text: '⌀ front' }),
+    el('span', {})));
+  (h.segs || []).forEach(function (g, i) {
+    if (!g._u) g._u = uid();
+    function inp(key, ph) {
+      return el('input', { class: 'input', style: 'min-height:30px', 'data-k': 'hseg-' + g._u + '-' + key,
+        placeholder: ph, value: g[key] == null ? '' : g[key],
+        oninput: function (e) { g[key] = e.target.value; render(); } });
+    }
+    segs.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr 28px;gap:var(--space-2);align-items:center' },
+      inp('len', '2.500'), inp('dTop', '2.500'), inp('dBot', '1.650'),
+      el('button', { class: 'btn btn-ghost', style: 'font-size:14px', text: '×',
+        onclick: function () { h.segs = h.segs.filter(function (x) { return x._u !== g._u; }); render(); } })));
+  });
+  segs.appendChild(el('button', { class: 'btn btn-secondary', style: 'font-size:12px;justify-self:start', text: '+ Add section',
+    onclick: function () {
+      h.segs = (h.segs || []).concat([{ _u: uid(), len: '', dTop: '', dBot: '' }]);
+      render();
+    } }));
+
+  // Preview it exactly as it will be stacked — same renderer, one holder deep.
+  var preview = frame('padding:var(--space-3);background:var(--color-neutral-100);display:flex;justify-content:center');
+  preview.appendChild(assemblyDrawing({ machine: 'mill', dia: '', assembly: { stack: [{ u: 'p', ref: h.id }], stickout: 0 } },
+    { w: 300, h: 340, labels: false, dias: true }));
+
+  var left = el('div', { style: 'display:grid;gap:var(--space-4);align-content:start' },
+    grid,
+    el('div', {},
+      el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:var(--space-2)', text: 'Profile' }),
+      el('p', { class: 'text-muted', style: 'font-size:11px;margin:0 0 var(--space-2);max-width:60ch',
+        text: 'Sections run from the spindle end down. Same ⌀ back and front makes a cylinder, different ones a cone. The lengths add up to the projection past the face this part mounts to — the taper above the gauge line is drawn for you.' }),
+      segs));
+
+  var right = el('div', { style: 'display:grid;gap:var(--space-2);align-content:start' },
+    preview,
+    el('div', { style: 'text-align:center' },
+      el('span', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.08em;text-transform:uppercase', text: 'Projection ' }),
+      el('b', { style: 'font-variant-numeric:tabular-nums', text: fmt3(compLength(h)) })));
+
+  var body = el('div', { class: 'dialog-body' },
+    el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-6);align-items:start' }, left, right));
+  if (state.hDraftError) {
+    body.appendChild(el('p', { style: 'font-size:13px;color:var(--color-accent-800);margin:var(--space-3) 0 0', text: state.hDraftError }));
+  }
+
+  var known = state.holders.some(function (x) { return x.id === h.id; });
+
+  return dialogShell('width:min(880px,100%)', known ? 'Edit ' + h.name : 'New holder', body, [
+    // The fastest way to a 6.00 ER32 is to copy the 4.00 and change one number.
+    known ? el('button', { class: 'btn btn-ghost', text: 'Duplicate', onclick: function () {
+      h.id = uid();
+      h.name = String(h.name || 'Holder').replace(/ \(copy( \d+)?\)$/, '') + ' (copy)';
+      h.segs = (h.segs || []).map(function (gg) { return Object.assign({}, gg, { _u: uid() }); });
+      set({ hDraftError: '' });
+    } }) : null,
+    el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: function () { leaveHolderDialog(back); } }),
+    el('button', { class: 'btn btn-primary', text: known ? 'Save holder' : 'Add holder', onclick: function () { saveHolder(back); } })
+  ]);
+}
+
+/* back is the dialog that sent us here — the tool being edited is still in
+   state.draft either way, so returning lands exactly where you left off. */
+function leaveHolderDialog(back) {
+  if (back === 'compPick') set({ dialog: { kind: 'compPick', back: 'tool', replaceU: null }, hDraft: null, hDraftError: '' });
+  else if (back === 'tool') set({ dialog: { kind: 'tool' }, hDraft: null, hDraftError: '' });
+  else set({ dialog: null, hDraft: null, hDraftError: '' });
+}
+
+function saveHolder(back) {
+  var h = state.hDraft;
+  if (!h) return;
+  if (!String(h.name || '').trim()) {
+    return set({ hDraftError: 'Give the holder a name — it is what you pick it by.' });
+  }
+  if (!(h.segs || []).some(function (g) { return num(g.len) > 0; })) {
+    return set({ hDraftError: 'Give it at least one section with a length, or it has nothing to add to the gauge length.' });
+  }
+  var saved = JSON.parse(JSON.stringify(h));
+  saved.segs = (saved.segs || []).filter(function (g) { return num(g.len) > 0; });
+  var exists = state.holders.some(function (x) { return x.id === saved.id; });
+  state.holders = exists
+    ? state.holders.map(function (x) { return x.id === saved.id ? saved : x; })
+    : state.holders.concat([saved]);
+  markHolders();
+  leaveHolderDialog(back);
 }
 
 /* ── jobs list ───────────────────────────────────────────────────────── */
@@ -2072,8 +3100,16 @@ function imageDialog() {
 function toolDialog() {
   var d = state.draft;
   if (!d) return null;
+  var mill = d.machine !== 'lathe';
   var fields = fieldsFor(d.machine);
-  var grid = el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3)' });
+  var cols = mill ? 'repeat(auto-fit,minmax(140px,1fr))' : '1fr 1fr 1fr';
+  var grid = el('div', { style: 'display:grid;grid-template-columns:' + cols + ';gap:var(--space-3)' });
+  var g = mill ? assemblyGeom(d) : null;
+  // The assembly owns the gauge length, so the field tracks it keystroke by
+  // keystroke instead of waiting for Save — nothing here needs applying.
+  var derivedGauge = !!(g && g.ok);
+  if (derivedGauge) d.gauge = fmt3(g.gauge);
+
   fields.forEach(function (f) {
     var control;
     if (f.options) {
@@ -2082,22 +3118,286 @@ function toolDialog() {
     } else if (f.long) {
       control = el('textarea', { class: 'input', style: 'min-height:70px', 'data-k': 'draft-' + f.k,
         placeholder: f.ph || '', value: d[f.k] || '', oninput: function (e) { d[f.k] = e.target.value; } });
+    } else if (derivedGauge && f.k === 'gauge') {
+      control = el('input', { class: 'input', 'data-k': 'draft-gauge', value: d.gauge, readonly: 'readonly',
+        style: 'color:var(--color-neutral-700);cursor:default' });
     } else {
       control = el('input', { class: 'input', 'data-k': 'draft-' + f.k, placeholder: f.ph || '', value: d[f.k] || '',
-        oninput: function (e) { d[f.k] = e.target.value; } });
+        oninput: function (e) { d[f.k] = e.target.value; render(); } });
     }
     grid.appendChild(el('div', { class: 'field', style: f.long ? 'grid-column:1/-1' : '' },
-      el('label', { text: f.label }), control));
+      el('label', { text: f.label }), control,
+      derivedGauge && f.k === 'gauge'
+        ? el('div', { class: 'text-muted', style: 'font-size:11px;margin-top:3px', text: 'From the assembly.' })
+        : null));
   });
 
-  var body = el('div', { class: 'dialog-body' }, grid, photoPicker(d));
+  var left = el('div', { style: 'display:grid;gap:var(--space-3);align-content:start' }, grid, photoPicker(d));
+  var body = el('div', { class: 'dialog-body' });
+
+  if (mill) {
+    // auto-fit collapses to one column in a narrow window without needing a
+    // media query — this file has no stylesheet hooks beyond the one <style>.
+    body.appendChild(el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:var(--space-6);align-items:start' },
+      left, assemblyPanel(d, g)));
+  } else {
+    body.appendChild(left);
+  }
+
   if (state.draftError) {
     body.appendChild(el('p', { style: 'font-size:13px;color:var(--color-accent-800);margin:var(--space-3) 0 0', text: state.draftError }));
   }
 
-  return dialogShell('width:min(720px,100%)', d.id ? 'Edit ' + (d.tnum || 'tool') : 'New ' + (d.machine === 'lathe' ? 'lathe' : 'mill') + ' tool', body, [
+  return dialogShell('width:min(' + (mill ? 1080 : 720) + 'px,100%)',
+    d.id ? 'Edit ' + (d.tnum || 'tool') : 'New ' + (d.machine === 'lathe' ? 'lathe' : 'mill') + ' tool', body, [
     el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: closeDialog }),
     el('button', { class: 'btn btn-primary', text: 'Save tool', onclick: saveTool })
+  ]);
+}
+
+/* ── the assembly column ─────────────────────────────────────────────────
+
+   Everything in here re-renders on every keystroke, unlike the tool fields on
+   the left, because the drawing has to follow the number as it is typed. That
+   is safe only because render() restores focus and caret by `data-k` — which
+   is also why every input below is keyed on the stage's own uid and never on
+   its index: the rows reorder. */
+
+function assemblyOf(d) {
+  if (!d.assembly) d.assembly = { stack: [], stickout: '' };
+  if (!d.assembly.stack) d.assembly.stack = [];
+  return d.assembly;
+}
+
+function assemblyPanel(d, g) {
+  var asm = d.assembly || { stack: [], stickout: '' };
+  g = g || assemblyGeom(d);
+
+  var draw = frame('padding:var(--space-3);background:var(--color-neutral-100);display:flex;justify-content:center');
+  draw.appendChild(assemblyDrawing(d, { w: 470, h: 430 }));
+
+  var rows = el('div', { style: 'display:grid;gap:var(--space-2)' });
+  (asm.stack || []).forEach(function (e, i) {
+    var st = g.stages[i] || {};
+    var comp = st.comp;
+    var sub = comp
+      ? holderKindLabel(comp.kind) + (comp.nose ? ' · ' + comp.nose : '') + ' · ' + fmt3(st.len) + ' proj'
+      : 'not in the holder library any more';
+    rows.appendChild(el('div', { style: 'display:flex;align-items:center;gap:var(--space-2);border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent);padding-bottom:var(--space-2)' },
+      el('div', { style: 'display:flex;flex-direction:column' },
+        el('button', { class: 'btn btn-ghost', style: 'font-size:10px;line-height:1;padding:1px 3px', text: '▲',
+          disabled: i === 0, onclick: function () { moveStage(d, i, -1); } }),
+        el('button', { class: 'btn btn-ghost', style: 'font-size:10px;line-height:1;padding:1px 3px', text: '▼',
+          disabled: i === asm.stack.length - 1, onclick: function () { moveStage(d, i, 1); } })
+      ),
+      el('div', { style: 'flex:1;min-width:0' },
+        el('div', { style: 'font-size:13px;font-weight:600;color:' + (comp ? 'inherit' : 'var(--color-accent-800)'),
+          text: (comp ? '' : '⚠ ') + (comp ? comp.name : 'Missing component') }),
+        el('div', { class: 'text-muted', style: 'font-size:11px', text: sub })
+      ),
+      comp ? el('button', { class: 'btn btn-ghost', style: 'font-size:12px', text: 'Edit',
+        onclick: function () { set({ dialog: { kind: 'holder', back: 'tool' }, hDraft: cloneHolder(comp), hDraftError: '' }); } }) : null,
+      el('button', { class: 'btn btn-ghost', style: 'font-size:12px', text: comp ? 'Swap' : 'Pick',
+        onclick: function () { set({ dialog: { kind: 'compPick', back: 'tool', replaceU: e.u } }); } }),
+      el('button', { class: 'btn btn-ghost', style: 'font-size:14px', text: '×',
+        onclick: function () { asm.stack = asm.stack.filter(function (x) { return x.u !== e.u; }); render(); } })
+    ));
+  });
+  if (!asm.stack.length) {
+    /* Telling someone to start with the taper without handing them one is a
+       dead end — the tapers in the library go right here, with whatever the
+       Holder field already says sorted to the front. */
+    var picks = suggestTapers(d);
+    rows.appendChild(el('p', { class: 'text-muted', style: 'font-size:12px;margin:0',
+      text: picks.length
+        ? 'Start with the taper — the holder that goes in the spindle. Then stack anything between it and the cutter.'
+        : 'Add a taper to the holder library first — that is the holder that goes in the spindle.' }));
+    if (picks.length) {
+      var quick = el('div', { style: 'display:flex;flex-wrap:wrap;gap:var(--space-2)' });
+      picks.slice(0, 4).forEach(function (x, i) {
+        quick.appendChild(el('button', {
+          class: i === 0 && x.score > 0 ? 'btn btn-primary' : 'btn btn-secondary',
+          style: 'font-size:12px',
+          text: x.h.name,
+          onclick: function () { assemblyOf(d).stack = [{ u: uid(), ref: x.h.id }]; render(); }
+        }));
+      });
+      rows.appendChild(quick);
+      if (picks[0].score > 0) {
+        rows.appendChild(el('div', { class: 'text-muted', style: 'font-size:11px',
+          text: 'First one matches the Holder field.' }));
+      }
+    }
+  }
+
+  function numField(label, key, ph, hint) {
+    return el('div', { class: 'field' },
+      el('label', { text: label }),
+      el('input', { class: 'input', 'data-k': 'asm-' + key, placeholder: ph, value: asm[key] == null ? '' : asm[key],
+        oninput: function (e) { assemblyOf(d)[key] = e.target.value; render(); } }),
+      hint ? el('div', { class: 'text-muted', style: 'font-size:11px;margin-top:3px', text: hint }) : null);
+  }
+
+  var readout = el('div', { style: 'display:grid;gap:var(--space-1);font-size:13px' });
+  if (g.ok) {
+    readout.appendChild(el('div', {},
+      el('span', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.08em;text-transform:uppercase', text: 'Gauge length ' }),
+      el('b', { style: 'font-variant-numeric:tabular-nums', text: fmt3(g.gauge) }),
+      el('span', { class: 'text-muted', style: 'font-size:11px', text: '  = ' + fmt3(g.holderFront) + ' holder + ' + fmt3(g.stickout) + ' stickout' })
+    ));
+  }
+  g.warn.forEach(function (m) {
+    readout.appendChild(el('div', { style: 'font-size:12px;color:var(--color-accent-800)', text: '⚠ ' + m }));
+  });
+
+  return el('div', { style: 'display:grid;gap:var(--space-3);align-content:start' },
+    el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase', text: 'Assembly' }),
+    draw,
+    readout,
+    rows,
+    el('div', { style: 'display:flex;gap:var(--space-2);flex-wrap:wrap' },
+      el('button', { class: 'btn btn-secondary', style: 'font-size:12px', text: '+ Add component',
+        onclick: function () { set({ dialog: { kind: 'compPick', back: 'tool', replaceU: null } }); } }),
+      asm.stack.length ? el('button', { class: 'btn btn-ghost', style: 'font-size:12px', text: 'Clear stack',
+        onclick: function () { d.assembly = { stack: [], stickout: asm.stickout }; render(); } }) : null
+    ),
+    el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:var(--space-3)' },
+      [numField('Stickout', 'stickout', '1.500', 'Tip to the holder face.'),
+       numField('Shank ⌀', 'shankDia', String(d.dia || '0.500'), 'Blank = the tool ⌀.')]
+        .concat(cutterFields(d, g, numField)))
+  );
+}
+
+/* A chamfer, dovetail, lollipop or T-slot cutter needs a couple of numbers a
+   plain endmill does not — asking for them only when the Type calls for them
+   keeps the panel from turning into a form. */
+function cutterFields(d, g, numField) {
+  var k = g.cut ? g.cut.kind : 'plain';
+  var D = num(d.dia);
+  function dflt(x) { return D > 0 ? fmt3(D * x) : ''; }
+  var out = [];
+
+  if (k === 'chamfer') {
+    out.push(numField('Included angle', 'angle', '90', 'Degrees.'));
+    out.push(numField('Tip flat ⌀', 'tipDia', '0.060', 'The flat on the point.'));
+  } else if (k === 'dovetail') {
+    out.push(numField('Included angle', 'angle', '60', 'Degrees.'));
+    out.push(numField('Head height', 'headLen', dflt(0.40), 'Depth of the cutting head.'));
+    out.push(numField('Neck ⌀', 'neckDia', dflt(0.60), 'Above the head.'));
+  } else if (k === 'disc') {
+    out.push(numField('Head height', 'headLen', dflt(0.25), 'Thickness of the disc.'));
+    out.push(numField('Neck ⌀', 'neckDia', dflt(0.50), 'Behind the disc.'));
+  } else if (k === 'lolli') {
+    out.push(numField('Neck ⌀', 'neckDia', dflt(0.50), 'Behind the ball.'));
+  } else if (k === 'face') {
+    out.push(numField('Lead angle', 'lead', '45', 'Degrees. 90 = square shoulder.'));
+    out.push(numField('Insert height', 'insH', dflt(0.10), 'How far up the corner the edge runs.'));
+    out.push(numField('Body height', 'bodyH', dflt(0.35), 'Cutter body, tip to arbor face.'));
+    out.push(numField('Arbor ⌀', 'arborDia', dflt(0.40), 'The pilot it mounts on.'));
+  } else if (k === 'bull') {
+    out.push(numField('Corner radius', 'cornerRad', dflt(0.15), 'On each corner.'));
+    out.push(numField('Neck ⌀', 'neckDia', '', 'Only if it is necked down.'));
+  } else if (k === 'drill') {
+    out.push(numField('Point angle', 'angle', '118', 'Degrees included.'));
+    out.push(numField('Neck ⌀', 'neckDia', '', 'Only if it is necked down.'));
+  } else if (k === 'probe') {
+    out.push(numField('Stylus ball ⌀', 'styDia', dflt(0.25), 'The ruby.'));
+    out.push(numField('Stylus length', 'styLen', dflt(1.20), 'Body face to ball centre.'));
+  } else if (k === 'reamer') {
+    out.push(numField('Lead angle', 'angle', '45', 'The chamfer at the nose.'));
+    out.push(numField('Neck ⌀', 'neckDia', '', 'Only if it is necked down.'));
+  } else {
+    out.push(numField('Neck ⌀', 'neckDia', '', 'Only if the tool is necked down.'));
+  }
+
+  if (k === 'dovetail' || k === 'disc' || k === 'lolli' || k === 'chamfer') {
+    out.push(numField('Neck length', 'neckLen', '', 'Blank = up to the holder.'));
+  }
+  return out;
+}
+
+/* Tapers, best guess first: whatever the tool's free-text Holder field
+   already names is almost always the one wanted. */
+function suggestTapers(d) {
+  var words = String(d.holder || '').toLowerCase().split(/[^a-z0-9.]+/).filter(function (w) { return w.length > 1; });
+  return state.holders
+    .filter(function (h) { return h.kind === 'taper'; })
+    .map(function (h) {
+      var hay = [h.name, h.taper, h.nose].join(' ').toLowerCase();
+      var score = 0;
+      words.forEach(function (w) { if (hay.indexOf(w) >= 0) score++; });
+      return { h: h, score: score };
+    })
+    .sort(function (a, b) { return b.score - a.score || String(a.h.name).localeCompare(String(b.h.name)); });
+}
+
+function moveStage(d, i, dir) {
+  var st = assemblyOf(d).stack;
+  var j = i + dir;
+  if (j < 0 || j >= st.length) return;
+  var tmp = st[i]; st[i] = st[j]; st[j] = tmp;
+  render();
+}
+
+/* The component picker — a second dialog over the tool dialog. state.draft is
+   left alone, so coming back lands exactly where you were. */
+function compPickDialog() {
+  var replaceU = state.dialog.replaceU;
+  var d = state.draft;
+  var q = state.pickSearchH.trim().toLowerCase();
+  var list = state.holders.filter(function (h) {
+    return !q || [h.name, h.kind, h.taper, h.nose, h.vendor, h.partno].some(function (v) {
+      return String(v || '').toLowerCase().indexOf(q) >= 0;
+    });
+  });
+  // What the stage above hands off decides what fits — sorted to the top,
+  // never hidden. Shops adapt things the library has never heard of.
+  var stack = (d && d.assembly && d.assembly.stack) || [];
+  var idx = replaceU ? stack.map(function (x) { return x.u; }).indexOf(replaceU) : stack.length;
+  var above = idx > 0 ? holderById(stack[idx - 1].ref) : null;
+  var wantMount = above ? String(above.nose || '') : '';
+  list = list.slice().sort(function (a, b) {
+    var fa = wantMount && String(a.nose || '') === wantMount ? 0 : 1;
+    var fb = wantMount && String(b.nose || '') === wantMount ? 0 : 1;
+    if (idx === 0) { fa = a.kind === 'taper' ? 0 : 1; fb = b.kind === 'taper' ? 0 : 1; }
+    return fa - fb || String(a.name).localeCompare(String(b.name));
+  });
+
+  var rows = el('div', { style: 'display:grid;gap:var(--space-2);max-height:46vh;overflow:auto' });
+  list.forEach(function (h) {
+    rows.appendChild(el('div', { style: 'display:flex;align-items:center;gap:var(--space-3);border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent);padding-bottom:var(--space-2)' },
+      el('div', { style: 'flex:1;min-width:0' },
+        el('div', { style: 'font-size:13px;font-weight:600', text: h.name }),
+        el('div', { class: 'text-muted', style: 'font-size:11px',
+          text: holderKindLabel(h.kind) + (h.taper ? ' · ' + h.taper : '') + (h.nose ? ' → ' + h.nose : '') +
+            ' · ' + fmt3(compLength(h)) + ' proj' })
+      ),
+      el('button', { class: 'btn btn-secondary', style: 'font-size:12px', text: replaceU ? 'Use' : 'Add',
+        onclick: function () {
+          var asm = assemblyOf(d);
+          if (replaceU) {
+            asm.stack = asm.stack.map(function (x) { return x.u === replaceU ? { u: x.u, ref: h.id } : x; });
+          } else {
+            asm.stack = asm.stack.concat([{ u: uid(), ref: h.id }]);
+          }
+          set({ dialog: { kind: 'tool' }, pickSearchH: '' });
+        } })
+    ));
+  });
+  if (!list.length) {
+    rows.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;margin:0', text: 'Nothing matches. Add it to the holder library first.' }));
+  }
+
+  var body = el('div', { class: 'dialog-body', style: 'display:grid;gap:var(--space-3)' },
+    el('input', { class: 'input', 'data-k': 'pickSearchH', placeholder: 'Search the holder library',
+      value: state.pickSearchH, oninput: function (e) { set({ pickSearchH: e.target.value }); } }),
+    rows);
+
+  return dialogShell('width:min(560px,100%)', replaceU ? 'Swap component' : 'Add a component', body, [
+    el('button', { class: 'btn btn-ghost', text: 'New holder…', onclick: function () {
+      set({ dialog: { kind: 'holder', back: 'compPick' }, hDraft: blankHolder(), hDraftError: '' });
+    } }),
+    el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: function () { set({ dialog: { kind: 'tool' }, pickSearchH: '' }); } })
   ]);
 }
 
@@ -2114,8 +3414,12 @@ function saveTool() {
   if (clash) return set({ draftError: d.tnum + ' is already taken in the ' + d.machine + ' sequence.' });
 
   if (d.removeImage) { deleteToolImage(d.removeImage); }
-  var saved = Object.assign({}, d);
+  var saved = cloneTool(d);
   delete saved.removeImage;
+  if (saved.machine !== 'lathe') {
+    var ag = assemblyGeom(saved);
+    if (ag.ok) saved.gauge = fmt3(ag.gauge);
+  }
   if (!saved.image) delete saved.image;
 
   if (d.id) {
@@ -2188,8 +3492,18 @@ function render() {
     selStart = active.selectionStart; selEnd = active.selectionEnd;
   }
 
+  /* A registry (or the holder library that hangs off the mill one) can be
+     switched off while you are standing on it. */
+  var reg = currentRegistry();
+  if (state.view === 'tools') {
+    if (!reg) state.view = 'dash'; else state.machineType = reg;
+  }
+  if (state.view === 'holders' && visibleRegistries().indexOf('mill') < 0) state.view = 'dash';
+  if (state.view === 'jobs' && !typeByValue(state.jobType)) state.jobType = defaultType();
+
   var page;
   if (state.view === 'tools') page = viewTools();
+  else if (state.view === 'holders') page = viewHolders();
   else if (state.view === 'jobs') page = viewJobs();
   else if (state.view === 'job') page = viewJob();
   else if (state.view === 'settings') page = viewSettings();
@@ -2200,6 +3514,8 @@ function render() {
 
   if (state.dialog) {
     var dlg = state.dialog.kind === 'tool' ? toolDialog()
+      : state.dialog.kind === 'holder' ? holderDialog()
+      : state.dialog.kind === 'compPick' ? compPickDialog()
       : state.dialog.kind === 'usage' ? usageDialog()
       : state.dialog.kind === 'image' ? imageDialog()
       : state.dialog.kind === 'conflict' ? conflictDialog()
@@ -2230,6 +3546,7 @@ if (cached) {
   state.tools = cached.tools || [];
   state.jobs = cached.jobs || [];
   state.machines = cached.machines || SEED.machines.slice();
+  state.holders = cached.holders || DEFAULT_HOLDERS.slice();
   state.settings = Object.assign({}, DEFAULT_SETTINGS, cached.settings || {});
 }
 

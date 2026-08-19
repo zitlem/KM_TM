@@ -13,6 +13,10 @@ FIRST MACHINE
    use a folder everyone can reach:
        - a network share / NAS  (\\SHOPNAS\toolmaster  or  smb://shopnas/toolmaster)
        - or a synced folder     (Dropbox / OneDrive / Google Drive)
+   A network share or a plain local folder is the safer choice. Chrome saves
+   through a temporary file, and sync clients sometimes delete that file
+   mid-write — the app retries, but if you keep seeing "could not write to",
+   pause syncing on the data folder or move it off the synced drive.
 3. Double-click start.command. The app opens in Chrome.
 4. Click "Connect data folder" and pick the folder from step 2.
    Chrome asks once for permission to edit that folder — say yes.
@@ -42,7 +46,9 @@ WHAT'S IN THE DATA FOLDER
 -------------------------
     tools.json          every tool in the mill and lathe registries
     machines.json       the machine list
-    settings.json       shop name and the two display options
+    holders.json        the holder library — tapers, extensions and collets,
+                        dimensioned once and stacked onto any mill tool
+    settings.json       shop name and the display options
     tools/
       T101-x3f9a2b.jpg  one photo per tool that has one
     jobs/

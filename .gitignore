@@ -19,8 +19,8 @@ Desktop.ini
 *.tmp
 *~
 
-# Shop data — lives in the local/shared data folder, not in the repo
-tools.json
+# Shop data — lives in the local/shared data folder, not in the repo.
+# The tooling is sample data and ships with the app, so it stays tracked.
 machines.json
 settings.json
 jobs/

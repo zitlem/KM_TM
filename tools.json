@@ -1,0 +1,81 @@
+[
+  {
+    "id": "t1",
+    "machine": "mill",
+    "tnum": "T101",
+    "desc": "1/2\" 4FL carbide endmill",
+    "type": "Endmill",
+    "dia": "0.500",
+    "flutes": "4",
+    "foc": "1.250",
+    "material": "Carbide, AlTiN",
+    "holder": "CAT40 ER32",
+    "vendor": "Kennametal",
+    "partno": "5065432",
+    "assembly": {
+      "stack": [
+        {
+          "u": "xeu33pf3",
+          "ref": "h_c50er32l"
+        }
+      ],
+      "stickout": ""
+    }
+  },
+  {
+    "id": "t2",
+    "machine": "mill",
+    "tnum": "T102",
+    "desc": "#7 jobber drill",
+    "type": "Drill",
+    "dia": "0.201",
+    "flutes": "2",
+    "foc": "2.750",
+    "material": "HSS-Co",
+    "holder": "CAT40 ER32",
+    "vendor": "Guhring",
+    "partno": "9001-0201"
+  },
+  {
+    "id": "t3",
+    "machine": "mill",
+    "tnum": "T103",
+    "desc": "1/4-20 spiral flute tap",
+    "type": "Tap",
+    "dia": "0.250",
+    "flutes": "3",
+    "foc": "1.000",
+    "material": "HSS-E, TiN",
+    "holder": "Tension/comp",
+    "vendor": "Emuge",
+    "partno": "B0512300"
+  },
+  {
+    "id": "t4",
+    "machine": "lathe",
+    "tnum": "T5",
+    "desc": "80° OD roughing, CNMG",
+    "type": "Turning (OD)",
+    "turret": "5",
+    "nose": "0.031",
+    "hand": "Right",
+    "material": "CNMG432 / TN60",
+    "shank": "1\" square",
+    "vendor": "Sandvik",
+    "partno": "DCLNR-164D"
+  },
+  {
+    "id": "t5",
+    "machine": "lathe",
+    "tnum": "T7",
+    "desc": ".750 boring bar, carbide shank",
+    "type": "Boring bar",
+    "turret": "7",
+    "nose": "0.016",
+    "hand": "Right",
+    "material": "CCMT32.51 / TP2500",
+    "shank": "0.750 round",
+    "vendor": "Iscar",
+    "partno": "A12M-SCLCR3"
+  }
+]
