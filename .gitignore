@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Logs / temp
+*.log
+*.tmp
+*~
+
+# Shop data — lives in the local/shared data folder, not in the repo
+tools.json
+machines.json
+settings.json
+jobs/

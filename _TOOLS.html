@@ -1,0 +1,2253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tool Master — machine shop tool registry</title>
+<style>
+/* ── Industry design system (inlined from _ds/.../styles.css) ─────────────
+   Fonts fall back to the system stack so the page works with no network. */
+:root {
+  --color-bg: #f2f2f3;
+  --color-surface: #e9e9ea;
+  --color-text: #1d1f20;
+  --color-accent: #5980a6;
+  --color-accent-2: #728fab;
+  --color-divider: color-mix(in srgb, #1d1f20 16%, transparent);
+
+  --color-neutral-100: #f5f5f8;
+  --color-neutral-200: #e7e7ea;
+  --color-neutral-300: #d4d4d7;
+  --color-neutral-400: #b7b7ba;
+  --color-neutral-500: #98989b;
+  --color-neutral-600: #7a7a7d;
+  --color-neutral-700: #5d5d60;
+  --color-neutral-800: #424244;
+  --color-neutral-900: #2b2b2d;
+
+  --color-accent-100: #eef6ff;
+  --color-accent-200: #d6ebff;
+  --color-accent-300: #b5d9fd;
+  --color-accent-400: #94bce3;
+  --color-accent-500: #749dc4;
+  --color-accent-600: #597ea3;
+  --color-accent-700: #416180;
+  --color-accent-800: #2c455d;
+  --color-accent-900: #1d2d3d;
+
+  --font-heading: "Barlow Condensed", "Oswald", "Arial Narrow", system-ui, sans-serif;
+  --font-heading-weight: 600;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --space-1: 3.4px;
+  --space-2: 6.8px;
+  --space-3: 10.2px;
+  --space-4: 13.6px;
+  --space-6: 20.4px;
+  --space-8: 27.2px;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 7px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; font-size: 15px; line-height: 1.55; font-weight: 400;
+  background: var(--color-bg); color: var(--color-text); font-family: var(--font-body);
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  line-height: 1.12; letter-spacing: -0.015em; margin: 0 0 var(--space-2);
+}
+h1 { font-size: 42px; } h2 { font-size: 32px; } h3 { font-size: 25px; }
+h4 { font-size: 20px; } h5 { font-size: 16px; }
+h6 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+p { margin: 0 0 var(--space-3); }
+a { color: var(--color-accent); text-underline-offset: 3px; }
+a:hover { color: var(--color-accent-700); }
+.text-muted { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+
+.blueprint { position: relative; border: 1px solid var(--color-divider); border-radius: 0; }
+.blueprint > .corner {
+  position: absolute; width: 11px; height: 11px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.blueprint > .corner::before, .blueprint > .corner::after { content: ""; position: absolute; background: currentColor; }
+.blueprint > .corner::before { left: 5px; top: 0; width: 1px; height: 100%; }
+.blueprint > .corner::after  { top: 5px; left: 0; width: 100%; height: 1px; }
+.blueprint > .corner.tl { top: -6px; left: -6px; }
+.blueprint > .corner.tr { top: -6px; right: -6px; }
+.blueprint > .corner.bl { bottom: -6px; left: -6px; }
+.blueprint > .corner.br { bottom: -6px; right: -6px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; text-decoration: none;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 14px; line-height: 1.2; color: var(--color-text);
+  background: transparent; border: 1px solid var(--color-divider);
+  padding: var(--space-2) calc(var(--space-3) * 1.2);
+  border-radius: 0;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
+.btn-primary:hover { background: var(--color-accent-600); }
+.btn-primary:active { background: var(--color-accent-700); }
+.btn-secondary { border-color: var(--color-divider); }
+.btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.btn-secondary:active { background: color-mix(in srgb, var(--color-text) 14%, transparent); }
+.btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); border-color: transparent; }
+.btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.btn-ghost:active { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+
+.field > label {
+  display: block; font-size: 12px; margin-bottom: 5px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.input {
+  width: 100%; min-height: 36px; padding: 6px 10px; font: inherit;
+  font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider); border-radius: 0;
+}
+.input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+textarea.input { min-height: 90px; resize: vertical; }
+
+.card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3); border-radius: 0;
+  background: transparent; border: 1px solid var(--color-divider);
+}
+.card-kicker { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); }
+.card-meta {
+  display: flex; align-items: center; gap: 6px; font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+.tag {
+  display: inline-flex; align-items: center; font-size: 11px;
+  letter-spacing: 0.02em; padding: 3px 10px; border-radius: 0;
+}
+.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+
+.nav { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4); }
+.nav-brand { font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 18px; margin-right: auto; }
+.nav a { color: inherit; text-decoration: none; font-size: 14px; cursor: pointer; }
+.nav a:hover, .nav a[aria-current='page'] { color: var(--color-accent); }
+
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th {
+  text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: var(--space-2); border-bottom: 1px solid var(--color-divider);
+}
+.table td { padding: var(--space-2); border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent); }
+.table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+
+.dialog-backdrop {
+  position: fixed; inset: 0; display: grid; place-items: center; z-index: 50;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-neutral-900) 50%, transparent);
+}
+.dialog {
+  width: min(440px, 100%); display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4); border-radius: 0;
+  background: var(--color-bg); border: 1px solid var(--color-divider); box-shadow: var(--shadow-lg);
+}
+.dialog-title { font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 20px; }
+.dialog-body { font-size: 14px; opacity: 0.85; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* Whole rows and cards are click targets; the buttons inside them still win. */
+.clickable { cursor: pointer; }
+.card.clickable:hover { border-color: var(--color-accent); }
+.card.clickable:hover .card-kicker { color: var(--color-accent-700); }
+tr.clickable:hover { background: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+
+/* ── file-sync chrome ─────────────────────────────────────────────────── */
+.sync { display: flex; align-items: center; gap: var(--space-3); }
+.sync-dot { width: 8px; height: 8px; flex: none; background: var(--color-neutral-500); }
+.sync-dot.ok { background: var(--color-accent); }
+.sync-dot.warn { background: #b8863b; }
+.sync-dot.err { background: #a4443a; }
+.sync-text { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.banner {
+  font-size: 13px; padding: var(--space-2) var(--space-6);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border-bottom: 1px solid var(--color-divider);
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function () {
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════════════
+   Constants and seed data — carried over from Tool Master.dc.html
+   ══════════════════════════════════════════════════════════════════ */
+
+var LS_KEY = 'machineshop.registry.v1';
+
+var MILL_TYPES = ['Endmill', 'Ball endmill', 'Bull endmill', 'Face mill', 'Drill', 'Spot drill', 'Tap', 'Reamer', 'Chamfer mill', 'Boring head', 'Probe'];
+var LATHE_TYPES = ['Turning (OD)', 'Boring bar', 'Grooving', 'Threading', 'Parting', 'Drill', 'Tap', 'Reamer', 'Center drill'];
+
+var MILL_FIELDS = [
+  { k: 'tnum', label: 'T-number', ph: 'T101' },
+  { k: 'desc', label: 'Description', ph: '1/2" 4FL carbide endmill' },
+  { k: 'type', label: 'Type', options: MILL_TYPES },
+  { k: 'dia', label: 'Diameter', ph: '0.500' },
+  { k: 'flutes', label: 'Flutes', ph: '4' },
+  { k: 'foc', label: 'Flute length', ph: '1.250' },
+  { k: 'material', label: 'Material / coating', ph: 'Carbide, AlTiN' },
+  { k: 'holder', label: 'Holder', ph: 'CAT40 ER32' },
+  { k: 'gauge', label: 'Gauge length', ph: '4.250' },
+  { k: 'vendor', label: 'Vendor', ph: 'Kennametal' },
+  { k: 'partno', label: 'Vendor part #', ph: '5065432' },
+  { k: 'notes', label: 'Tool notes', ph: 'Speeds, feeds, regrind history, anything worth knowing before it goes in the spindle.', long: true }
+];
+
+var LATHE_FIELDS = [
+  { k: 'tnum', label: 'T-number', ph: 'T5' },
+  { k: 'desc', label: 'Description', ph: '80° OD roughing, CNMG' },
+  { k: 'type', label: 'Type', options: LATHE_TYPES },
+  { k: 'turret', label: 'Turret station', ph: '5' },
+  { k: 'nose', label: 'Nose radius', ph: '0.031' },
+  { k: 'hand', label: 'Hand', options: ['Right', 'Left', 'Neutral'] },
+  { k: 'material', label: 'Insert grade / coating', ph: 'CNMG432 / TN60' },
+  { k: 'shank', label: 'Shank size', ph: '1" square' },
+  { k: 'gauge', label: 'Gauge length', ph: '2.750' },
+  { k: 'vendor', label: 'Vendor', ph: 'Sandvik' },
+  { k: 'partno', label: 'Vendor part #', ph: 'DCLNR-164D' },
+  { k: 'notes', label: 'Tool notes', ph: 'Speeds, feeds, insert changes, anything worth knowing before it goes in the turret.', long: true }
+];
+
+/* The kinds of machine on the floor. Editable in Settings: hide one you do
+   not run, or add your own (EDM, grinder, saw…). `tooling` says which tool
+   registry that kind's jobs pick from — a mill-turn uses both.
+   `value` doubles as the job folder name under jobs/. */
+var DEFAULT_MACHINE_TYPES = [
+  { value: 'mill', label: 'Mill', tooling: 'mill', builtin: true },
+  { value: 'lathe', label: 'Lathe', tooling: 'lathe', builtin: true },
+  { value: 'millturn', label: 'Mill-turn', tooling: 'both', builtin: true, hidden: true }
+];
+
+function machineTypes() {
+  var list = state.settings && state.settings.machineTypes;
+  return (list && list.length) ? list : DEFAULT_MACHINE_TYPES;
+}
+function visibleTypes() {
+  return machineTypes().filter(function (t) { return !t.hidden; });
+}
+function typeByValue(v) {
+  return machineTypes().filter(function (t) { return t.value === v; })[0] || null;
+}
+function typeLabel(v) {
+  var t = typeByValue(v);
+  return t ? t.label : (v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Mill');
+}
+function toolingFor(v) {
+  var t = typeByValue(v);
+  return t ? (t.tooling || 'mill') : 'mill';
+}
+function defaultType() {
+  var v = visibleTypes()[0] || machineTypes()[0];
+  return v ? v.value : 'mill';
+}
+function jobsPageTitle(t) { return typeLabel(t) + ' jobs'; }
+
+var DEFAULT_SETTINGS = {
+  shopName: 'Machine shop',
+  machineTypes: null,      // null = the built-in three; Settings replaces it
+  subtitle: '',          // optional line next to the shop name; empty = just the name
+  showVendor: true,
+  signoffLines: false
+};
+
+var SEED = {
+  machines: [
+    { id: 'm1', name: 'Mazak 6000', type: 'mill' },
+    { id: 'm2', name: 'Mazak 6800', type: 'mill' },
+    { id: 'm3', name: 'Mazak 350MSY', type: 'lathe' }
+  ],
+  tools: [
+    { id: 't1', machine: 'mill', tnum: 'T101', desc: '1/2" 4FL carbide endmill', type: 'Endmill', dia: '0.500', flutes: '4', foc: '1.250', material: 'Carbide, AlTiN', holder: 'CAT40 ER32', vendor: 'Kennametal', partno: '5065432' },
+    { id: 't2', machine: 'mill', tnum: 'T102', desc: '#7 jobber drill', type: 'Drill', dia: '0.201', flutes: '2', foc: '2.750', material: 'HSS-Co', holder: 'CAT40 ER32', vendor: 'Guhring', partno: '9001-0201' },
+    { id: 't3', machine: 'mill', tnum: 'T103', desc: '1/4-20 spiral flute tap', type: 'Tap', dia: '0.250', flutes: '3', foc: '1.000', material: 'HSS-E, TiN', holder: 'Tension/comp', vendor: 'Emuge', partno: 'B0512300' },
+    { id: 't4', machine: 'lathe', tnum: 'T5', desc: '80° OD roughing, CNMG', type: 'Turning (OD)', turret: '5', nose: '0.031', hand: 'Right', material: 'CNMG432 / TN60', shank: '1" square', vendor: 'Sandvik', partno: 'DCLNR-164D' },
+    { id: 't5', machine: 'lathe', tnum: 'T7', desc: '.750 boring bar, carbide shank', type: 'Boring bar', turret: '7', nose: '0.016', hand: 'Right', material: 'CCMT32.51 / TP2500', shank: '0.750 round', vendor: 'Iscar', partno: 'A12M-SCLCR3' }
+  ],
+  jobs: [
+    { id: 'j1', created: '2026-08-04T08:00:00.000Z', jobno: 'WO-1042', rev: 'C', machine: 'Mazak 6000', lastRun: '2026-08-04', notes: 'Vise on riser, datum at part zero front-left top. Dial in fixed jaw to .0005.', tools: [{ toolId: 't1', note: '1.25 stickout' }, { toolId: 't2', note: '' }] }
+  ]
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   Small helpers
+   ══════════════════════════════════════════════════════════════════ */
+
+function uid() { return 'x' + Math.random().toString(36).slice(2, 9); }
+
+/* Today in the YYYY-MM-DD an <input type="date"> expects, in local time —
+   toISOString() would hand back yesterday for anyone west of UTC. */
+function today() {
+  var d = new Date();
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+  });
+}
+
+function slug(s) {
+  return String(s == null ? '' : s).trim()
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-.]+|-+$/g, '')
+    .slice(0, 64);
+}
+
+/* el('div', {class:'x', style:'…', text:'…', onclick:fn}, child, child…) */
+function el(tag, attrs) {
+  var node = document.createElement(tag);
+  attrs = attrs || {};
+  Object.keys(attrs).forEach(function (k) {
+    var v = attrs[k];
+    if (v === null || v === undefined || v === false) return;
+    if (k === 'text') { node.textContent = v; return; }
+    if (k === 'class') { node.className = v; return; }
+    if (k === 'style') { node.setAttribute('style', v); return; }
+    if (k === 'value') { node.value = v; return; }
+    if (k === 'checked' || k === 'disabled') { node[k] = !!v; return; }
+    if (k.slice(0, 2) === 'on') { node.addEventListener(k.slice(2), v); return; }
+    node.setAttribute(k, v);
+  });
+  for (var i = 2; i < arguments.length; i++) {
+    var kid = arguments[i];
+    if (kid === null || kid === undefined || kid === false) continue;
+    if (Array.isArray(kid)) {
+      kid.forEach(function (c) { if (c) node.appendChild(c); });
+    } else if (typeof kid === 'string' || typeof kid === 'number') {
+      node.appendChild(document.createTextNode(String(kid)));
+    } else {
+      node.appendChild(kid);
+    }
+  }
+  return node;
+}
+
+/* Make a row or card open something on click. Clicks that land on a control
+   inside it — Delete, a note field, the photo link — are left alone. */
+function clickable(node, fn) {
+  node.classList.add('clickable');
+  node.addEventListener('click', function (e) {
+    if (e.target.closest('button, a, input, select, textarea, label')) return;
+    fn();
+  });
+  return node;
+}
+
+/* the four blueprint registration marks */
+function corners() {
+  return ['tl', 'tr', 'bl', 'br'].map(function (c) { return el('i', { class: 'corner ' + c }); });
+}
+
+function frame(styleStr) {
+  var box = el('div', { class: 'blueprint', style: styleStr || '' });
+  corners().forEach(function (c) { box.appendChild(c); });
+  return box;
+}
+
+function select(attrs, options, value) {
+  var s = el('select', attrs);
+  options.forEach(function (o) {
+    var opt = typeof o === 'string' ? { value: o, label: o } : o;
+    s.appendChild(el('option', { value: opt.value, text: opt.label }));
+  });
+  s.value = value == null ? '' : value;
+  return s;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   IndexedDB — holds the directory handle across launches
+   ══════════════════════════════════════════════════════════════════ */
+
+var idb = {
+  open: function () {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open('toolmaster', 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore('kv'); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  },
+  get: function (key) {
+    return idb.open().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var r = db.transaction('kv', 'readonly').objectStore('kv').get(key);
+        r.onsuccess = function () { resolve(r.result); };
+        r.onerror = function () { reject(r.error); };
+      });
+    });
+  },
+  set: function (key, val) {
+    return idb.open().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(val, key);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  },
+  del: function (key) {
+    return idb.open().then(function (db) {
+      return new Promise(function (resolve) {
+        var tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').delete(key);
+        tx.oncomplete = function () { resolve(); };
+      });
+    });
+  }
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   File-system store
+   ══════════════════════════════════════════════════════════════════ */
+
+var FS_SUPPORTED = typeof window.showDirectoryPicker === 'function';
+
+var store = {
+  dir: null,          // FileSystemDirectoryHandle
+  connected: false,   // handle present AND permission granted
+  name: '',
+  lastSync: null,     // last time we wrote
+  lastRemote: null,   // last time the folder handed us someone else's change
+  error: ''
+};
+
+function stripPrivate(key, value) { return key.charAt(0) === '_' ? undefined : value; }
+
+/* A file's "signature" — modified time plus size. Any edit from any machine
+   changes it, so comparing signatures tells us whether the copy on disk is
+   still the one we read. Cheap enough to poll a whole shop folder with. */
+function sigOf(file) { return file.lastModified + ':' + file.size; }
+
+/* {data, sig} for a JSON file, or null when it does not exist yet. */
+async function readJSONMeta(dirHandle, name) {
+  var fh;
+  try {
+    fh = await dirHandle.getFileHandle(name);
+  } catch (e) {
+    if (e && e.name === 'NotFoundError') return null;
+    throw e;
+  }
+  var file = await fh.getFile();
+  var text = await file.text();
+  if (!text.trim()) return null;
+  return { data: JSON.parse(text), sig: sigOf(file) };
+}
+
+async function readJSON(dirHandle, name) {
+  var m = await readJSONMeta(dirHandle, name);
+  return m ? m.data : null;
+}
+
+async function statSig(dirHandle, name) {
+  try {
+    var fh = await dirHandle.getFileHandle(name);
+    return sigOf(await fh.getFile());
+  } catch (e) {
+    if (e && e.name === 'NotFoundError') return null;
+    throw e;
+  }
+}
+
+/* Writes and returns the new signature, so our own write is never mistaken
+   for somebody else's. */
+async function writeFile(dirHandle, name, text) {
+  var fh = await dirHandle.getFileHandle(name, { create: true });
+  var w = await fh.createWritable();
+  await w.write(text);
+  await w.close();
+  return sigOf(await fh.getFile());
+}
+
+function writeJSON(dirHandle, name, data) {
+  return writeFile(dirHandle, name, JSON.stringify(data, stripPrivate, 2) + '\n');
+}
+
+/* ── tool photos ─────────────────────────────────────────────────────── */
+
+var IMG_MAX_PX = 1400;
+var imgCache = {};    // file name -> object URL
+
+/* Shop phones take 4000px photos; a tool crib does not need them. Scaling to
+   1400px keeps the folder small enough to sit on a share and to survive in
+   localStorage when no folder is connected. */
+function fileToJpegDataUrl(file) {
+  return new Promise(function (resolve, reject) {
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      var scale = Math.min(1, IMG_MAX_PX / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('That file is not an image the browser can read.')); };
+    img.src = url;
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  var bin = atob(dataUrl.split(',')[1]);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: 'image/jpeg' });
+}
+
+function imageNameFor(tool) { return (slug(tool.tnum) || tool.id) + '-' + tool.id + '.jpg'; }
+
+/* The photo as something an <img> can show: the freshly picked one, or the
+   file in the folder, loaded once and cached. */
+async function imageUrl(tool) {
+  if (tool.imageData) return tool.imageData;
+  if (!tool.image) return null;
+  if (imgCache[tool.image]) return imgCache[tool.image];
+  if (!store.connected || !store.dir) return null;
+  try {
+    var dir = await store.dir.getDirectoryHandle('tools', { create: true });
+    var fh = await dir.getFileHandle(tool.image);
+    var url = URL.createObjectURL(await fh.getFile());
+    imgCache[tool.image] = url;
+    return url;
+  } catch (e) { return null; }
+}
+
+async function deleteToolImage(name) {
+  if (imgCache[name]) { URL.revokeObjectURL(imgCache[name]); delete imgCache[name]; }
+  if (!store.connected || !store.dir || !name) return;
+  try {
+    var dir = await store.dir.getDirectoryHandle('tools', { create: true });
+    await dir.removeEntry(name);
+  } catch (e) { /* already gone */ }
+}
+
+async function permissionState() {
+  if (!store.dir || !store.dir.queryPermission) return 'granted';
+  return store.dir.queryPermission({ mode: 'readwrite' });
+}
+
+/* Restore a remembered folder. Loads with zero clicks when the browser has
+   kept the grant; otherwise leaves the Sync button in the "needs a click"
+   state so one press can call requestPermission() from a user gesture. */
+async function restoreFolder() {
+  if (!FS_SUPPORTED) return;
+  var handle;
+  try { handle = await idb.get('dataDir'); } catch (e) { return; }
+  if (!handle) return;
+  store.dir = handle;
+  store.name = handle.name;
+  var perm = await permissionState();
+  if (perm === 'granted') {
+    await loadFromDisk();
+  } else {
+    store.connected = false;
+    render();
+  }
+}
+
+async function connectFolder() {
+  try {
+    var handle = await window.showDirectoryPicker({ id: 'toolmaster-data', mode: 'readwrite' });
+    store.dir = handle;
+    store.name = handle.name;
+    store.error = '';
+    idb.set('dataDir', handle).catch(function () { /* folder just won't be remembered */ });
+    await loadFromDisk();
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;      // user closed the picker
+    store.error = e && e.message ? e.message : String(e);
+    render();
+  }
+}
+
+async function grantAndLoad() {
+  if (!store.dir) return connectFolder();
+  var perm = await store.dir.requestPermission({ mode: 'readwrite' });
+  if (perm !== 'granted') {
+    store.error = 'Permission to the data folder was declined.';
+    render();
+    return;
+  }
+  await loadFromDisk();
+}
+
+/* Signatures of every file as we last saw it. The difference between "this
+   changed" and "we changed it" is the whole basis of the sharing model. */
+var seen = { tools: null, machines: null, settings: null, jobs: {}, dirs: {} };
+
+/* One pass over the folder: the three top-level files plus every job dir.
+   In light mode (used by the poll) a file whose signature still matches is
+   never actually read — on a network share that is the difference between
+   listing the folder and pulling every job across the wire twice a minute. */
+async function scanDisk(light) {
+  var root = store.dir;
+  async function top(name, prev) {
+    if (light) {
+      var sig = await statSig(root, name);
+      if (sig !== null && sig === prev) return { sig: sig, unchanged: true };
+    }
+    return readJSONMeta(root, name);
+  }
+  var scan = {
+    tools: await top('tools.json', seen.tools),
+    machines: await top('machines.json', seen.machines),
+    settings: await top('settings.json', seen.settings),
+    jobs: [], warnings: 0
+  };
+  var jobsDir = await root.getDirectoryHandle('jobs', { create: true });
+
+  /* side === null means a job folder sitting straight under jobs/ — the old
+     flat layout. Those are read, then moved into their type's folder. */
+  async function scanJobsIn(dirHandle, side, skip) {
+    for await (var entry of dirHandle.values()) {
+      if (entry.kind !== 'directory') continue;
+      if (skip && skip[entry.name]) continue;
+      var path = (side ? side + '/' : '') + entry.name;
+      try {
+        var known = seen.dirs[path];
+        if (light && known) {
+          var s = await statSig(entry, 'job.json');
+          if (s !== null && s === known.sig) { scan.jobs.push({ sig: s, id: known.id, unchanged: true }); continue; }
+        }
+        var m = await readJSONMeta(entry, 'job.json');
+        if (m && m.data && m.data.id) {
+          m.data._dir = entry.name;
+          m.data._side = side;
+          m.dir = path;
+          m.legacy = side === null;
+          scan.jobs.push(m);
+        } else scan.warnings++;
+      } catch (e) { scan.warnings++; }
+    }
+  }
+
+  /* Anything under jobs/ that does not itself hold a job.json is a machine-type
+     folder — including types added on somebody else's machine. */
+  var sides = {};
+  for await (var top of jobsDir.values()) {
+    if (top.kind !== 'directory') continue;
+    if ((await statSig(top, 'job.json')) === null) sides[top.name] = true;
+  }
+  await scanJobsIn(jobsDir, null, sides);
+  var names = Object.keys(sides);
+  for (var si = 0; si < names.length; si++) {
+    await scanJobsIn(await jobsDir.getDirectoryHandle(names[si]), names[si]);
+  }
+  return scan;
+}
+
+/* Remember which directory holds which job, so the light scan can tell an
+   untouched job from a missing one without opening it. */
+function noteDir(dirName, id, sig) {
+  Object.keys(seen.dirs).forEach(function (d) { if (seen.dirs[d].id === id && d !== dirName) delete seen.dirs[d]; });
+  if (dirName) seen.dirs[dirName] = { id: id, sig: sig };
+}
+
+function sortJobs() {
+  state.jobs.sort(function (a, b) {
+    return String(a.created || '').localeCompare(String(b.created || '')) ||
+           String(a._dir || '').localeCompare(String(b._dir || ''));
+  });
+}
+
+/* Read the whole folder into memory. Seeds an empty folder from whatever the
+   browser was holding (or from SEED) so a fresh pick produces a full tree. */
+async function loadFromDisk() {
+  try {
+    var root = store.dir;
+    var scan = await scanDisk();
+
+    if (scan.tools === null && scan.machines === null) {
+      // Empty folder — hand it everything we have and write it out.
+      store.connected = true;
+      markAllDirty();
+      await flushNow();
+      store.lastSync = new Date();
+      startPolling();
+      render();
+      return;
+    }
+
+    state.tools = scan.tools ? scan.tools.data : [];
+    state.machines = scan.machines ? scan.machines.data : SEED.machines.slice();
+    state.settings = Object.assign({}, DEFAULT_SETTINGS, scan.settings ? scan.settings.data : {});
+    state.jobs = scan.jobs.map(function (m) { return m.data; });
+    sortJobs();
+
+    seen = { tools: scan.tools && scan.tools.sig, machines: scan.machines && scan.machines.sig,
+             settings: scan.settings && scan.settings.sig, jobs: {}, dirs: {} };
+    scan.jobs.forEach(function (m) { seen.jobs[m.data.id] = m.sig; noteDir(m.dir, m.data.id, m.sig); });
+
+    if (state.jobId && !state.jobs.some(function (j) { return j.id === state.jobId; })) {
+      state.jobId = null;
+      if (state.view === 'job') state.view = 'jobs';
+    }
+
+    store.connected = true;
+    store.error = scan.warnings ? scan.warnings + ' job folder(s) skipped — unreadable job.json' : '';
+    store.lastSync = new Date();
+    dirty = { tools: false, machines: false, settings: false, jobs: {} };
+
+    // Folders written before the mill/lathe split get rewritten into their
+    // side folder on the next flush, and the flat one is removed.
+    var legacy = scan.jobs.filter(function (m) { return m.legacy; });
+    if (legacy.length) {
+      legacy.forEach(function (m) { dirty.jobs[m.data.id] = true; });
+      scheduleFlush();
+    }
+    saveLocal();
+    startPolling();
+    render();
+  } catch (e) {
+    store.connected = false;
+    store.error = e && e.message ? e.message : String(e);
+    render();
+  }
+}
+
+/* ── watching the folder for other people's writes ───────────────────── */
+
+var POLL_MS = 10000;
+var pollTimer = null;
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(function () {
+    if (document.hidden || !store.connected) return;
+    pollDisk();
+  }, POLL_MS);
+}
+
+function pollDisk() {
+  flushChain = flushChain.then(async function () {
+    if (!store.connected || !store.dir) return;
+    try {
+      var scan = await scanDisk(true);
+      if (mergeScan(scan)) {
+        store.lastRemote = new Date();
+        saveLocal();
+        render();
+      }
+    } catch (e) {
+      if (e && e.name === 'NotAllowedError') { store.connected = false; render(); }
+    }
+  });
+  return flushChain;
+}
+
+/* Fold what is on disk into memory. Anything we have unsaved local edits to
+   is left alone — the write guard in flushNow() raises that as a conflict
+   instead, so a half-typed note is never overwritten behind your back. */
+function mergeScan(scan) {
+  var changed = false;
+
+  if (scan.tools && !scan.tools.unchanged && scan.tools.sig !== seen.tools && !dirty.tools) {
+    state.tools = scan.tools.data; seen.tools = scan.tools.sig; changed = true;
+  }
+  if (scan.machines && !scan.machines.unchanged && scan.machines.sig !== seen.machines && !dirty.machines) {
+    state.machines = scan.machines.data; seen.machines = scan.machines.sig; changed = true;
+  }
+  if (scan.settings && !scan.settings.unchanged && scan.settings.sig !== seen.settings && !dirty.settings) {
+    state.settings = Object.assign({}, DEFAULT_SETTINGS, scan.settings.data);
+    seen.settings = scan.settings.sig; changed = true;
+  }
+
+  var onDisk = {};
+  scan.jobs.forEach(function (m) {
+    if (m.unchanged) { onDisk[m.id] = true; return; }
+    var id = m.data.id;
+    onDisk[id] = true;
+    if (dirty.jobs[id]) return;                       // ours to save first
+    var idx = -1;
+    state.jobs.forEach(function (j, i) { if (j.id === id) idx = i; });
+    if (idx < 0) { state.jobs.push(m.data); changed = true; }
+    else if (seen.jobs[id] !== m.sig) { state.jobs[idx] = m.data; changed = true; }
+    else return;
+    seen.jobs[id] = m.sig;
+    noteDir(m.dir, id, m.sig);
+    if (m.legacy) { dirty.jobs[id] = true; scheduleFlush(); }
+  });
+
+  // Jobs deleted on another machine — but never one we created and have not
+  // written out yet (those have no signature on record).
+  state.jobs.filter(function (j) {
+    return !onDisk[j.id] && seen.jobs[j.id] !== undefined && !dirty.jobs[j.id];
+  }).forEach(function (j) {
+    state.jobs = state.jobs.filter(function (x) { return x.id !== j.id; });
+    delete seen.jobs[j.id];
+    changed = true;
+    if (state.jobId === j.id) { state.jobId = null; if (state.view === 'job') state.view = 'jobs'; }
+  });
+
+  if (changed) sortJobs();
+  return changed;
+}
+
+/* ── conflicts ───────────────────────────────────────────────────────── */
+
+var conflict = null;   // {kind:'tools'|'machines'|'settings'|'job', id, label}
+
+function raiseConflict(kind, id, label) {
+  if (conflict) return;
+  conflict = { kind: kind, id: id, label: label };
+  if (!state.dialog) state.dialog = { kind: 'conflict' };   // else it waits for closeDialog
+  render();
+}
+
+/* Keep mine: overwrite the file regardless of what is there now. */
+function resolveKeepMine() {
+  var c = conflict;
+  conflict = null;
+  state.dialog = null;
+  if (!c) return render();
+  if (c.kind === 'job') seen.jobs[c.id] = null; else seen[c.kind] = null;   // null = force
+  scheduleFlush();
+  render();
+}
+
+/* Take theirs: drop our unsaved edits to that file and reload it. */
+function resolveTakeTheirs() {
+  var c = conflict;
+  conflict = null;
+  state.dialog = null;
+  if (!c) return render();
+  flushChain = flushChain.then(async function () {
+    try {
+      if (c.kind === 'job') {
+        delete dirty.jobs[c.id];
+        var job = jobById(c.id);
+        var jobsDir = await store.dir.getDirectoryHandle('jobs', { create: true });
+        var parent = job && job._side ? await jobsDir.getDirectoryHandle(job._side, { create: true }) : jobsDir;
+        var dh = await parent.getDirectoryHandle(job && job._dir ? job._dir : c.id);
+        var m = await readJSONMeta(dh, 'job.json');
+        if (m) {
+          m.data._dir = job && job._dir;
+          m.data._side = job && job._side;
+          state.jobs = state.jobs.map(function (j) { return j.id === c.id ? m.data : j; });
+          seen.jobs[c.id] = m.sig;
+          noteDir((m.data._side ? m.data._side + '/' : '') + m.data._dir, c.id, m.sig);
+        }
+      } else {
+        dirty[c.kind] = false;
+        var name = c.kind + '.json';
+        var meta = await readJSONMeta(store.dir, name);
+        if (meta) {
+          if (c.kind === 'settings') state.settings = Object.assign({}, DEFAULT_SETTINGS, meta.data);
+          else state[c.kind] = meta.data;
+          seen[c.kind] = meta.sig;
+        }
+      }
+      saveLocal();
+    } catch (e) { store.error = 'Reload failed: ' + (e.message || e); }
+    render();
+  });
+}
+
+/* ── dirty tracking and debounced writes ─────────────────────────────── */
+
+var dirty = { tools: false, machines: false, settings: false, jobs: {} };
+var flushTimer = null;
+var flushChain = Promise.resolve();
+
+function markAllDirty() {
+  dirty.tools = true; dirty.machines = true; dirty.settings = true;
+  state.jobs.forEach(function (j) { dirty.jobs[j.id] = true; });
+}
+
+function scheduleFlush() {
+  saveLocal();
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(function () { flushNow(); }, 400);
+}
+
+function markTools() { dirty.tools = true; scheduleFlush(); }
+function markMachines() { dirty.machines = true; scheduleFlush(); }
+function markSettings() { dirty.settings = true; scheduleFlush(); }
+function markJob(id) { dirty.jobs[id] = true; scheduleFlush(); }
+function markJobs(ids) { ids.forEach(function (id) { dirty.jobs[id] = true; }); scheduleFlush(); }
+
+/* Unique within its own side of the shop — jobs/mill/WO-1042 and
+   jobs/lathe/WO-1042 can coexist. */
+function jobDirName(job, side) {
+  var base = slug(job.jobno) || job.id;
+  var taken = {};
+  state.jobs.forEach(function (j) {
+    if (j !== job && j._dir && machineTypeOf(j) === side) taken[j._dir] = true;
+  });
+  var name = base, n = 2;
+  while (taken[name]) { name = base + '-' + n; n++; }
+  return name;
+}
+
+/* Returns false when the file on disk has moved on since we read it — the
+   caller then leaves it dirty and asks the user what to do. A recorded
+   signature of null means "force", the answer to Keep mine. */
+async function stale(dirHandle, name, recorded) {
+  if (recorded === null || recorded === undefined) return false;
+  var now = await statSig(dirHandle, name);
+  return now !== null && now !== recorded;
+}
+
+async function writeJobDir(job) {
+  var jobsDir = await store.dir.getDirectoryHandle('jobs', { create: true });
+  var side = machineTypeOf(job);
+  var sideDir = await jobsDir.getDirectoryHandle(side, { create: true });
+  var want = jobDirName(job, side);
+  var dh = await sideDir.getDirectoryHandle(want, { create: true });
+
+  // Where the job lives now: a side folder, or straight under jobs/ if it
+  // was written before the split.
+  var oldParent = null;
+  if (job._dir) {
+    oldParent = job._side ? await jobsDir.getDirectoryHandle(job._side, { create: true }) : jobsDir;
+  }
+
+  // Guard against the copy in the folder having changed under us.
+  var recorded = seen.jobs[job.id];
+  var checkDir = oldParent ? await oldParent.getDirectoryHandle(job._dir, { create: true }) : dh;
+  if (await stale(checkDir, 'job.json', recorded)) {
+    raiseConflict('job', job.id, job.jobno || 'this job');
+    return false;
+  }
+
+  seen.jobs[job.id] = await writeJSON(dh, 'job.json', job);
+  await writeFile(dh, 'setup-sheet.html', buildSetupSheetHtml(job));
+
+  var movedFrom = oldParent && (job._dir !== want || job._side !== side) ? job._dir : null;
+  job._dir = want;
+  job._side = side;
+  noteDir(side + '/' + want, job.id, seen.jobs[job.id]);
+  if (movedFrom) {
+    try { await oldParent.removeEntry(movedFrom, { recursive: true }); } catch (e) { /* already gone */ }
+  }
+  return true;
+}
+
+function flushNow() {
+  flushChain = flushChain.then(async function () {
+    saveLocal();
+    if (!store.connected || !store.dir) return;
+    try {
+      // Photos picked while offline (or just now) become real files here, and
+      // the tool record keeps only the file name.
+      var pending = state.tools.filter(function (t) { return t.imageData; });
+      if (pending.length) {
+        var toolsDir = await store.dir.getDirectoryHandle('tools', { create: true });
+        for (var p = 0; p < pending.length; p++) {
+          var t = pending[p];
+          var name = imageNameFor(t);
+          var fh = await toolsDir.getFileHandle(name, { create: true });
+          var w = await fh.createWritable();
+          await w.write(dataUrlToBlob(t.imageData));
+          await w.close();
+          if (t.image && t.image !== name) await deleteToolImage(t.image);
+          if (imgCache[name]) { URL.revokeObjectURL(imgCache[name]); delete imgCache[name]; }
+          t.image = name;
+          delete t.imageData;
+          dirty.tools = true;
+        }
+      }
+      if (dirty.tools) {
+        if (await stale(store.dir, 'tools.json', seen.tools)) raiseConflict('tools', null, 'the tool registry');
+        else { seen.tools = await writeJSON(store.dir, 'tools.json', state.tools); dirty.tools = false; }
+      }
+      if (dirty.machines) {
+        if (await stale(store.dir, 'machines.json', seen.machines)) raiseConflict('machines', null, 'the machine list');
+        else { seen.machines = await writeJSON(store.dir, 'machines.json', state.machines); dirty.machines = false; }
+      }
+      if (dirty.settings) {
+        if (await stale(store.dir, 'settings.json', seen.settings)) raiseConflict('settings', null, 'the shop preferences');
+        else { seen.settings = await writeJSON(store.dir, 'settings.json', state.settings); dirty.settings = false; }
+      }
+      var ids = Object.keys(dirty.jobs);
+      for (var i = 0; i < ids.length; i++) {
+        var job = state.jobs.filter(function (j) { return j.id === ids[i]; })[0];
+        if (!job) { delete dirty.jobs[ids[i]]; continue; }
+        if (await writeJobDir(job)) delete dirty.jobs[ids[i]];
+      }
+      store.lastSync = new Date();
+      if (store.error.slice(0, 12) === 'Write failed') store.error = '';
+    } catch (e) {
+      store.error = 'Write failed: ' + (e && e.message ? e.message : String(e));
+      if (e && e.name === 'NotAllowedError') store.connected = false;
+    }
+    render();
+  });
+  return flushChain;
+}
+
+async function removeJobDir(job) {
+  delete seen.jobs[job.id];
+  Object.keys(seen.dirs).forEach(function (d) { if (seen.dirs[d].id === job.id) delete seen.dirs[d]; });
+  if (!store.connected || !store.dir || !job._dir) return;
+  try {
+    var jobsDir = await store.dir.getDirectoryHandle('jobs', { create: true });
+    var parent = job._side ? await jobsDir.getDirectoryHandle(job._side, { create: true }) : jobsDir;
+    await parent.removeEntry(job._dir, { recursive: true });
+  } catch (e) { /* nothing on disk yet */ }
+}
+
+/* ── browser-only mirror ─────────────────────────────────────────────── */
+
+function saveLocal() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      tools: state.tools, jobs: state.jobs, machines: state.machines, settings: state.settings
+    }, stripPrivate));
+  } catch (e) { /* quota */ }
+}
+
+function loadLocal() {
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   State
+   ══════════════════════════════════════════════════════════════════ */
+
+var state = {
+  view: 'dash',
+  machineType: 'mill',   // which tool registry is showing
+  jobType: 'mill',       // which jobs list is showing (a machine type value)
+  tools: SEED.tools.slice(),
+  jobs: SEED.jobs.slice(),
+  machines: SEED.machines.slice(),
+  settings: Object.assign({}, DEFAULT_SETTINGS),
+  search: '',
+  pickSearch: '',
+  jobId: null,
+  dialog: null,
+  draft: null,
+  draftError: '',
+  newMachineName: '',
+  newMachineType: 'mill',
+  newTypeName: '',
+  newTypeTooling: 'mill'
+};
+
+function set(patch) { Object.assign(state, patch); render(); }
+
+function fieldsFor(mt) { return mt === 'lathe' ? LATHE_FIELDS : MILL_FIELDS; }
+
+function spec(t) {
+  var gl = t.gauge ? 'GL ' + t.gauge : '';
+  if (t.machine === 'lathe') {
+    return [t.type, t.nose ? 'R' + t.nose : '', t.hand, t.material, gl].filter(Boolean).join(' · ');
+  }
+  var fl = [t.flutes ? t.flutes + 'FL' : '', t.foc ? t.foc + ' LOC' : ''].filter(Boolean).join(' × ');
+  return [t.type, t.dia ? '⌀' + t.dia : '', fl, t.material, gl].filter(Boolean).join(' · ');
+}
+
+function usage(toolId) {
+  return state.jobs.filter(function (j) { return (j.tools || []).some(function (x) { return x.toolId === toolId; }); });
+}
+
+function sortTools(list) {
+  var n = function (s) { var m = String(s || '').match(/\d+/); return m ? parseInt(m[0], 10) : 9999; };
+  return list.slice().sort(function (a, b) {
+    return n(a.tnum) - n(b.tnum) || String(a.tnum).localeCompare(String(b.tnum));
+  });
+}
+
+function jobById(id) { return state.jobs.filter(function (j) { return j.id === id; })[0] || null; }
+
+/* A job belongs to the mill or lathe side according to the machine it runs
+   on. Jobs with no machine yet sit with the mills, same as a new job's
+   default tool picker. */
+function machineTypeOf(job) {
+  var m = state.machines.filter(function (x) { return x.name === job.machine; })[0];
+  if (m && m.type && typeByValue(m.type)) return m.type;
+  return m && m.type ? m.type : defaultType();   // unknown type keeps its own list
+}
+
+function jobsOfType(mt) {
+  return state.jobs.filter(function (j) { return machineTypeOf(j) === mt; });
+}
+
+function patchJob(id, patch) {
+  var j = jobById(id);
+  if (!j) return;
+  Object.assign(j, patch);
+  markJob(id);
+  render();
+}
+
+function openJob(id) { set({ view: 'job', jobId: id, dialog: null, pickSearch: '' }); }
+
+function closeDialog() {
+  set({ dialog: conflict ? { kind: 'conflict' } : null, draft: null, draftError: '' });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Setup sheet — the same HTML is printed and written to the job folder
+   ══════════════════════════════════════════════════════════════════ */
+
+/* One compact stylesheet behind all three printouts: the job setup sheet,
+   a single tool card, and the whole registry. Tight enough that a typical
+   setup lands on one page. */
+function printCss() {
+  return '@page{margin:10mm}' +
+    'body{font-family:Barlow,system-ui,sans-serif;color:#1d1f20;font-size:9.5pt;line-height:1.3;margin:0}' +
+    'h1{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:17pt;margin:0;line-height:1.05}' +
+    '.kick{font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;color:#5d5d60}' +
+    '.hd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;' +
+      'border-bottom:1.2px solid #1d1f20;padding-bottom:4px;margin-bottom:7px}' +
+    '.meta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-bottom:8px;font-size:9pt}' +
+    '.meta span{color:#5d5d60;text-transform:uppercase;font-size:7.5pt;letter-spacing:.08em;margin-right:4px}' +
+    '.meta b{font-weight:600}' +
+    'table{width:100%;border-collapse:collapse;font-size:9pt}' +
+    'th{text-align:left;font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;color:#5d5d60;' +
+      'border-bottom:1px solid #1d1f20;padding:2px 4px}' +
+    'td{padding:3px 4px;border-bottom:1px solid #d4d4d7;vertical-align:top}' +
+    'tr{break-inside:avoid}' +
+    '.n{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:11pt;white-space:nowrap}' +
+    '.sub{color:#5d5d60;font-size:8pt}' +
+    '.notes{margin-top:8px;border:1px solid #b7b7ba;padding:5px 7px}' +
+    '.notes h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;margin:0 0 2px;font-size:9pt;' +
+      'letter-spacing:.06em;text-transform:uppercase}' +
+    '.notes p{margin:0;white-space:pre-wrap}' +
+    '.sign{margin-top:12px;display:grid;gap:10px;font-size:9pt}' +
+    'thead{display:table-header-group}';
+}
+
+function sheetShell(title, kicker, heading, body) {
+  return '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(title) + '</title>' +
+    '<style>' + printCss() + '</style></head><body>' +
+    '<div class="hd"><div><div class="kick">' + esc(kicker) + '</div><h1>' + esc(heading) + '</h1></div>' +
+    '<div class="kick">Printed ' + new Date().toLocaleDateString() + '</div></div>' +
+    body + '</body></html>';
+}
+
+function shopName() { return state.settings.shopName || 'Machine shop'; }
+
+/* ── the job setup sheet ─────────────────────────────────────────────── */
+
+function buildSetupSheetHtml(job) {
+  var rows = (job.tools || []).map(function (x) {
+    var t = state.tools.filter(function (y) { return y.id === x.toolId; })[0];
+    if (!t) return '';
+    return '<tr><td class="n">' + esc(t.tnum) + '</td><td>' + esc(t.desc) +
+      (t.notes ? '<div class="sub">' + esc(t.notes) + '</div>' : '') +
+      '</td><td>' + esc(spec(t)) +
+      '</td><td>' + esc(t.machine === 'lathe' ? t.shank : t.holder) + '</td><td>' + esc(x.note) + '</td></tr>';
+  }).join('');
+  var signoff = state.settings.signoffLines
+    ? '<div class="sign"><div>Set up by ______________________  Date __________</div>' +
+      '<div>First article OK ______________________  Date __________</div></div>'
+    : '';
+  var body =
+    '<div class="meta"><div><span>Rev</span><b>' + esc(job.rev || '—') + '</b></div>' +
+    '<div><span>Machine</span><b>' + esc(job.machine || '—') + '</b></div>' +
+    '<div><span>Last run</span><b>' + esc(job.lastRun || '—') + '</b></div>' +
+    '<div><span>Tools</span><b>' + (job.tools || []).length + '</b></div></div>' +
+    '<table><thead><tr><th>Stn</th><th>Description</th><th>Spec</th><th>Holder</th><th>Setup note</th></tr></thead><tbody>' +
+    (rows || '<tr><td colspan="5">No tools assigned.</td></tr>') + '</tbody></table>' +
+    (job.notes ? '<div class="notes"><h3>Setup notes</h3><p>' + esc(job.notes) + '</p></div>' : '') +
+    signoff;
+  return sheetShell('Setup sheet ' + job.jobno, shopName() + ' — setup sheet', job.jobno || 'Untitled job', body);
+}
+
+/* ── one tool, with its photo ────────────────────────────────────────── */
+
+/* The print window is a separate document, so the photo has to travel as a
+   data URI rather than an object URL. */
+async function imageDataUrlFor(tool) {
+  if (tool.imageData) return tool.imageData;
+  if (!tool.image || !store.connected || !store.dir) return null;
+  try {
+    var dir = await store.dir.getDirectoryHandle('tools', { create: true });
+    var fh = await dir.getFileHandle(tool.image);
+    var file = await fh.getFile();
+    return await new Promise(function (resolve) {
+      var r = new FileReader();
+      // Stamp the type ourselves — these are always JPEGs, and a filesystem
+      // that reports application/octet-stream would give an <img> nothing to
+      // work with.
+      r.onload = function () { resolve('data:image/jpeg;base64,' + String(r.result).split(',')[1]); };
+      r.onerror = function () { resolve(null); };
+      r.readAsDataURL(file);
+    });
+  } catch (e) { return null; }
+}
+
+async function buildToolSheetHtml(tool) {
+  var fields = fieldsFor(tool.machine).filter(function (f) { return f.k !== 'notes' && f.k !== 'desc' && f.k !== 'tnum'; });
+  var meta = fields.map(function (f) {
+    return tool[f.k] ? '<div><span>' + esc(f.label) + '</span><b>' + esc(tool[f.k]) + '</b></div>' : '';
+  }).join('');
+  var jobs = usage(tool.id);
+  var used = jobs.length
+    ? '<div class="notes"><h3>Used in</h3><p>' + esc(jobs.map(function (j) { return j.jobno || '(untitled)'; }).join(', ')) + '</p></div>'
+    : '';
+  var photo = await imageDataUrlFor(tool);
+  var img = photo
+    ? '<img src="' + photo + '" style="max-width:88mm;max-height:80mm;border:1px solid #b7b7ba;margin-top:8px">'
+    : '';
+  var body =
+    '<div class="meta">' + (meta || '<div><span>No details recorded</span></div>') + '</div>' +
+    (tool.notes ? '<div class="notes"><h3>Tool notes</h3><p>' + esc(tool.notes) + '</p></div>' : '') +
+    used + img;
+  return sheetShell('Tool ' + tool.tnum, shopName() + ' — ' + tool.machine + ' tool', tool.tnum + '  ' + (tool.desc || ''), body);
+}
+
+/* ── the whole registry ──────────────────────────────────────────────── */
+
+function buildLibrarySheetHtml(mt, list) {
+  var lathe = mt === 'lathe';
+  var rows = list.map(function (t) {
+    return '<tr><td class="n">' + esc(t.tnum) + '</td>' +
+      '<td>' + esc(t.desc || '') + (t.notes ? '<div class="sub">' + esc(t.notes) + '</div>' : '') + '</td>' +
+      '<td>' + esc(t.type || '') + '</td>' +
+      '<td>' + esc(lathe ? [t.nose ? 'R' + t.nose : '', t.hand].filter(Boolean).join(' ') : [t.dia ? '⌀' + t.dia : '', [t.flutes ? t.flutes + 'FL' : '', t.foc ? t.foc + ' LOC' : ''].filter(Boolean).join(' × ')].filter(Boolean).join(' ')) + '</td>' +
+      '<td>' + esc(t.material || '') + '</td>' +
+      '<td>' + esc((lathe ? t.shank : t.holder) || '') + '</td>' +
+      '<td>' + esc(t.gauge || '') + '</td>' +
+      '<td>' + esc([t.vendor, t.partno].filter(Boolean).join(' · ')) + '</td></tr>';
+  }).join('');
+  var body =
+    '<div class="meta"><div><span>Tools</span><b>' + list.length + '</b></div></div>' +
+    '<table><thead><tr><th>T#</th><th>Description</th><th>Type</th><th>' + (lathe ? 'Nose / hand' : 'Dia / flutes') +
+    '</th><th>' + (lathe ? 'Insert grade' : 'Material') + '</th><th>' + (lathe ? 'Shank' : 'Holder') +
+    '</th><th>Gauge</th><th>Vendor · part #</th></tr></thead><tbody>' +
+    (rows || '<tr><td colspan="8">No tools in this registry.</td></tr>') + '</tbody></table>';
+  return sheetShell(typeLabel(mt) + ' tool registry', shopName() + ' — tool registry', typeLabel(mt) + ' tools', body);
+}
+
+/* ── printing ────────────────────────────────────────────────────────── */
+
+/* Opened on the click itself so the popup blocker lets it through; the
+   contents can then be filled in asynchronously. */
+function openPrintWindow() {
+  var w = window.open('', '_blank', 'width=900,height=1100');
+  if (w) {
+    w.document.write('<!doctype html><meta charset="utf-8"><title>Printing…</title>' +
+      '<p style="font:14px system-ui;padding:24px;color:#5d5d60">Preparing…</p>');
+  }
+  return w;
+}
+
+function finishPrint(w, html) {
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(function () { w.print(); }, 300);
+}
+
+function printSheetFor(job) { finishPrint(openPrintWindow(), buildSetupSheetHtml(job)); }
+
+function printToolCard(tool) {
+  var w = openPrintWindow();
+  buildToolSheetHtml(tool).then(function (html) { finishPrint(w, html); });
+}
+
+function printLibrary(mt, list) { finishPrint(openPrintWindow(), buildLibrarySheetHtml(mt, list)); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Views
+   ══════════════════════════════════════════════════════════════════ */
+
+function syncLabel() {
+  if (!FS_SUPPORTED) return 'Browser-only mode';
+  if (!store.dir) return 'Connect data folder';
+  if (!store.connected) return 'Sync — allow folder access';
+  return 'Sync';
+}
+
+function syncStatusText() {
+  if (!FS_SUPPORTED) return 'no folder access in this browser';
+  if (!store.dir) return 'not connected';
+  if (!store.connected) return 'folder remembered — needs a click';
+  var parts = ['watching'];
+  if (store.lastRemote) {
+    parts.push('updated ' + store.lastRemote.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  } else if (store.lastSync) {
+    parts.push('saved ' + store.lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  }
+  return parts.join(' · ');
+}
+
+function syncDotClass() {
+  if (!FS_SUPPORTED || !store.dir) return 'sync-dot';
+  if (store.error) return 'sync-dot err';
+  if (!store.connected) return 'sync-dot warn';
+  return 'sync-dot ok';
+}
+
+function onSyncClick() {
+  if (!FS_SUPPORTED) {
+    set({ dialog: { kind: 'confirm', title: 'This browser cannot open folders',
+      body: 'Writing to a data folder needs the File System Access API — Chrome or Edge, served over http://localhost (a file:// page is blocked). Your data is still kept safe in this browser in the meantime.',
+      okLabel: 'OK', action: closeDialog } });
+    return;
+  }
+  if (!store.dir) { connectFolder(); return; }
+  if (!store.connected) { grantAndLoad(); return; }
+  flushNow().then(loadFromDisk);
+}
+
+function header() {
+  var nav = el('nav', { class: 'nav', style: 'max-width:1440px;margin:0 auto;padding:var(--space-3) var(--space-6);gap:var(--space-6)' });
+
+  var brand = el('div', { class: 'nav-brand', style: 'display:flex;align-items:baseline;gap:var(--space-2)' },
+    el('span', { text: state.settings.shopName || 'Machine shop' }),
+    state.settings.subtitle
+      ? el('span', { class: 'text-muted', style: 'font-family:var(--font-body);font-size:11px;letter-spacing:.12em;text-transform:uppercase',
+          text: state.settings.subtitle })
+      : null
+  );
+
+  function link(label, view, mt) {
+    var current;
+    if (view === 'tools') current = state.view === 'tools' && state.machineType === mt;
+    else if (view === 'jobs') {
+      var openJobType = state.view === 'job' && jobById(state.jobId) ? machineTypeOf(jobById(state.jobId)) : null;
+      current = (state.view === 'jobs' && state.jobType === mt) || openJobType === mt;
+    } else current = state.view === view;
+
+    var a = el('a', { href: '#', text: label, onclick: function (e) {
+      e.preventDefault();
+      if (view === 'tools') set({ view: 'tools', machineType: mt, search: '' });
+      else if (view === 'jobs') set({ view: 'jobs', jobType: mt });
+      else set({ view: view });
+    } });
+    if (current) a.setAttribute('aria-current', 'page');
+    return a;
+  }
+
+  var links = el('div', { style: 'display:flex;align-items:center;gap:var(--space-6)' },
+    link('Dashboard', 'dash'),
+    link('Mill tools', 'tools', 'mill'), link('Lathe tools', 'tools', 'lathe'),
+    visibleTypes().map(function (t) { return link(t.label + ' jobs', 'jobs', t.value); }),
+    link('Settings', 'settings')
+  );
+
+  var sync = el('div', { class: 'sync' },
+    el('span', { class: syncDotClass() }),
+    el('span', { class: 'sync-text', text: syncStatusText() }),
+    el('button', { class: 'btn btn-secondary', text: syncLabel(), onclick: onSyncClick })
+  );
+
+  nav.appendChild(brand);
+  nav.appendChild(links);
+  nav.appendChild(sync);
+
+  var head = el('header', { style: 'position:sticky;top:0;z-index:20;background:var(--color-bg);border-bottom:1px solid var(--color-divider)' }, nav);
+
+  if (store.error) {
+    head.appendChild(el('div', { class: 'banner', text: store.error }));
+  } else if (!store.connected) {
+    head.appendChild(el('div', { class: 'banner', text: FS_SUPPORTED
+      ? 'Changes are kept in this browser only. Connect a data folder to write jobs, tools and setup sheets to disk.'
+      : 'Changes are kept in this browser only — open this page in Chrome or Edge over http://localhost to write to a data folder.' }));
+  }
+  return head;
+}
+
+/* ── dashboard ───────────────────────────────────────────────────────── */
+
+function statCard(kicker, value, meta, onOpen) {
+  var box = frame('');
+  box.className = 'card blueprint';
+  box.appendChild(el('div', { class: 'card-kicker', text: kicker }));
+  box.appendChild(el('div', { style: 'font-family:var(--font-heading);font-size:44px;line-height:1;font-variant-numeric:tabular-nums', text: String(value) }));
+  box.appendChild(el('div', { class: 'card-meta', text: meta }));
+  return onOpen ? clickable(box, onOpen) : box;
+}
+
+function jobRowCells(j, opts) {
+  var cells = [];
+  cells.push(el('td', { style: 'font-variant-numeric:tabular-nums', text: j.jobno || '(untitled)' }));
+  if (opts.split) cells.push(el('td', { class: 'text-muted', text: j.rev || '—' }));
+  cells.push(el('td', { class: 'text-muted', text: j.machine || '—' }));
+  cells.push(el('td', { style: 'font-variant-numeric:tabular-nums', text: String((j.tools || []).length) }));
+  cells.push(el('td', { class: 'text-muted', style: 'font-variant-numeric:tabular-nums', text: j.lastRun || '—' }));
+  return cells;
+}
+
+function confirmDeleteJob(j) {
+  set({ dialog: {
+    kind: 'confirm',
+    title: 'Delete ' + (j.jobno || 'this job') + '?',
+    body: 'The setup and its tool list are removed' + (store.connected ? ', along with its folder on disk' : '') + '. Tools stay in the registry.',
+    okLabel: 'Delete job',
+    action: function () {
+      removeJobDir(j);
+      state.jobs = state.jobs.filter(function (x) { return x.id !== j.id; });
+      delete dirty.jobs[j.id];
+      scheduleFlush();
+      set({ dialog: null, jobId: state.jobId === j.id ? null : state.jobId, view: state.jobId === j.id ? 'jobs' : state.view });
+    }
+  } });
+}
+
+/* Started from a jobs list, a new job lands on that side of the shop. */
+function newJob(mt) {
+  var want = mt || state.jobType || defaultType();
+  var id = uid();
+  var first = (state.machines.filter(function (m) { return m.type === want; })[0] || state.machines[0] || {}).name || '';
+  state.jobs.push({ id: id, created: new Date().toISOString(), jobno: '', rev: '', machine: first, lastRun: '', notes: '', tools: [] });
+  markJob(id);
+  set({ view: 'job', jobId: id, jobType: want, pickSearch: '' });
+}
+
+function viewDash() {
+  var wrap = el('div');
+  wrap.appendChild(el('div', { style: 'margin-bottom:var(--space-8)' },
+    el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase', text: 'Overview' }),
+    el('h2', { style: 'margin:0', text: 'Shop floor' })
+  ));
+
+  var millCount = state.tools.filter(function (t) { return t.machine === 'mill'; }).length;
+  var latheCount = state.tools.filter(function (t) { return t.machine === 'lathe'; }).length;
+
+  var cards = [
+    statCard('Mill tools', millCount, 'numbered in the mill sequence',
+      function () { set({ view: 'tools', machineType: 'mill', search: '' }); }),
+    statCard('Lathe tools', latheCount, 'numbered in the lathe sequence',
+      function () { set({ view: 'tools', machineType: 'lathe', search: '' }); })
+  ].concat(visibleTypes().map(function (t) {
+    return statCard(t.label + ' jobs', jobsOfType(t.value).length, 'setups on the ' + t.label.toLowerCase() + 's',
+      function () { set({ view: 'jobs', jobType: t.value }); });
+  }));
+
+  wrap.appendChild(el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-6);margin-bottom:var(--space-8)' }, cards));
+
+  /* recent jobs */
+  var recent = state.jobs.slice().reverse().slice(0, 6);
+  var recentBox = frame('padding:var(--space-4)');
+  var rtable = el('table', { class: 'table' },
+    el('thead', {}, el('tr', {},
+      ['Job', 'Machine', 'Tools', 'Last run', ''].map(function (h) { return el('th', { text: h }); })
+    ))
+  );
+  var rbody = el('tbody');
+  recent.forEach(function (j) {
+    var tr = clickable(el('tr', {}), function () { openJob(j.id); });
+    jobRowCells(j, { split: false }).forEach(function (c) { tr.appendChild(c); });
+    tr.appendChild(el('td', { style: 'text-align:right' },
+      el('button', { class: 'btn btn-ghost', text: 'Open', onclick: function () { openJob(j.id); } })));
+    rbody.appendChild(tr);
+  });
+  rtable.appendChild(rbody);
+  recentBox.appendChild(rtable);
+  if (!state.jobs.length) {
+    recentBox.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;padding:var(--space-4) 0 0;margin:0', text: 'No jobs yet. Start one and pull tools from the registry.' }));
+  }
+
+  wrap.appendChild(el('section', {},
+    el('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)' },
+      el('h4', { style: 'margin:0', text: 'Recent jobs' }),
+      el('button', { class: 'btn btn-secondary', text: '+ New job', onclick: function () { newJob(defaultType()); } })
+    ),
+    recentBox
+  ));
+  return wrap;
+}
+
+/* Jobs point at a machine by name, so a rename has to travel to every setup
+   using it — otherwise the job would lose its machine and fall back to the
+   mill list. */
+function renameMachine(m, newName) {
+  var old = m.name;
+  m.name = newName;
+  markMachines();
+  var touched = [];
+  state.jobs.forEach(function (j) {
+    if (j.machine === old) { j.machine = newName; touched.push(j.id); }
+  });
+  if (touched.length) markJobs(touched);
+  render();
+}
+
+function confirmRemoveMachine(m) {
+  var used = state.jobs.filter(function (j) { return j.machine === m.name; });
+  var drop = function () {
+    state.machines = state.machines.filter(function (x) { return x.id !== m.id; });
+    markMachines();
+    set({ dialog: null });
+  };
+  if (!used.length) return drop();
+  set({ dialog: {
+    kind: 'confirm',
+    title: 'This machine is in use',
+    body: m.name + ' is on ' + used.length + ' job' + (used.length > 1 ? 's' : '') +
+      ' (' + used.map(function (j) { return j.jobno || '(untitled)'; }).join(', ') +
+      '). Removing it leaves those setups without a machine, and they move to the mill list.',
+    okLabel: 'Remove anyway',
+    action: drop
+  } });
+}
+
+/* Machine types live in settings.json so they travel with the shop data.
+   Editing them writes the list back, replacing the built-in default. */
+function setTypes(list) {
+  state.settings.machineTypes = list;
+  markSettings();
+  render();
+}
+
+function typesPanel() {
+  var box = frame('padding:var(--space-4);display:grid;gap:var(--space-3)');
+  var types = machineTypes();
+
+  types.forEach(function (t, i) {
+    var machines = state.machines.filter(function (m) { return m.type === t.value; }).length;
+    var jobs = jobsOfType(t.value).length;
+    var note = [machines ? machines + (machines === 1 ? ' machine' : ' machines') : '',
+                jobs ? jobs + (jobs === 1 ? ' job' : ' jobs') : ''].filter(Boolean).join(' · ');
+
+    var name = t.builtin
+      ? el('div', { style: 'flex:1;font-family:var(--font-heading);font-size:16px', text: t.label })
+      : el('input', { class: 'input', style: 'flex:1', 'data-k': 'type-' + t.value, value: t.label,
+          oninput: function (e) {
+            var next = types.slice();
+            next[i] = Object.assign({}, t, { label: e.target.value });
+            setTypes(next);
+          } });
+
+    box.appendChild(el('div', { style: 'display:flex;align-items:center;gap:var(--space-3);border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent);padding-bottom:var(--space-3)' },
+      name,
+      el('span', { class: 'text-muted', style: 'font-size:11px;flex:none;min-width:96px;text-align:right', text: note }),
+      el('span', { class: 'text-muted', style: 'width:96px;flex:none;font-size:11px;letter-spacing:.06em;text-transform:uppercase',
+        text: t.tooling === 'both' ? 'both tools' : t.tooling + ' tools' }),
+      el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:12px;flex:none;cursor:pointer' },
+        el('input', { type: 'checkbox', 'data-k': 'show-' + t.value, checked: !t.hidden,
+          onchange: function (e) {
+            var next = types.slice();
+            next[i] = Object.assign({}, t, { hidden: !e.target.checked });
+            if (!e.target.checked && state.jobType === t.value) state.jobType = defaultType();
+            setTypes(next);
+          } }),
+        'Show'),
+      t.builtin ? null : el('button', { class: 'btn btn-ghost', text: 'Remove', onclick: function () {
+        if (machines || jobs) {
+          return set({ dialog: { kind: 'confirm', title: 'This type is in use',
+            body: t.label + ' has ' + note + '. Remove the type and those machines keep it, but it disappears from the menus until you add it back.',
+            okLabel: 'Remove anyway',
+            action: function () { setTypes(types.filter(function (x) { return x.value !== t.value; })); set({ dialog: null }); } } });
+        }
+        setTypes(types.filter(function (x) { return x.value !== t.value; }));
+      } })
+    ));
+  });
+
+  box.appendChild(el('div', { style: 'display:flex;gap:var(--space-2);align-items:flex-end;padding-top:var(--space-1)' },
+    el('div', { class: 'field', style: 'flex:1' },
+      el('label', { text: 'Add a machine type' }),
+      el('input', { class: 'input', 'data-k': 'newTypeName', placeholder: 'e.g. EDM, Grinder, Saw', value: state.newTypeName || '',
+        oninput: function (e) { state.newTypeName = e.target.value; } })
+    ),
+    el('div', { class: 'field', style: 'width:130px' },
+      el('label', { text: 'Uses' }),
+      select({ class: 'input', 'data-k': 'newTypeTooling', onchange: function (e) { set({ newTypeTooling: e.target.value }); } },
+        [{ value: 'mill', label: 'Mill tools' }, { value: 'lathe', label: 'Lathe tools' }, { value: 'both', label: 'Both' }],
+        state.newTypeTooling || 'mill')
+    ),
+    el('button', { class: 'btn btn-secondary', text: 'Add', onclick: function () {
+      var label = (state.newTypeName || '').trim();
+      if (!label) return;
+      var value = slug(label).toLowerCase() || 'type' + uid();
+      if (typeByValue(value)) return set({ newTypeName: '' });   // already there
+      state.newTypeName = '';
+      setTypes(machineTypes().concat([{ value: value, label: label, tooling: state.newTypeTooling || 'mill' }]));
+    } })
+  ));
+  return box;
+}
+
+/* ── settings: machines and shop preferences ─────────────────────────── */
+
+function viewSettings() {
+  /* machines */
+  var mBox = frame('padding:var(--space-4);display:grid;gap:var(--space-3)');
+  state.machines.forEach(function (m) {
+    mBox.appendChild(el('div', { style: 'display:flex;align-items:center;gap:var(--space-2);border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent);padding-bottom:var(--space-3)' },
+      el('input', { class: 'input', style: 'flex:1', 'data-k': 'machine-' + m.id, value: m.name,
+        oninput: function (e) { renameMachine(m, e.target.value); } }),
+      // The type is fixed at creation — it decides which registry and which
+      // jobs list the machine belongs to.
+      el('span', { class: 'text-muted', style: 'width:64px;flex:none;font-size:11px;letter-spacing:.08em;text-transform:uppercase', text: typeLabel(m.type) }),
+      el('button', { class: 'btn btn-ghost', text: 'Remove', onclick: function () { confirmRemoveMachine(m); } })
+    ));
+  });
+  mBox.appendChild(el('div', { style: 'display:flex;gap:var(--space-2);align-items:flex-end;padding-top:var(--space-1)' },
+    el('div', { class: 'field', style: 'flex:1' },
+      el('label', { text: 'Add a machine' }),
+      el('input', { class: 'input', 'data-k': 'newMachineName', placeholder: 'e.g. Mazak QTU 250', value: state.newMachineName,
+        oninput: function (e) { state.newMachineName = e.target.value; } })
+    ),
+    select({ class: 'input', style: 'width:110px', 'data-k': 'newMachineType', onchange: function (e) { set({ newMachineType: e.target.value }); } },
+      visibleTypes().map(function (t) { return { value: t.value, label: t.label }; }),
+      typeByValue(state.newMachineType) ? state.newMachineType : defaultType()),
+    el('button', { class: 'btn btn-secondary', text: 'Add', onclick: function () {
+      var name = state.newMachineName.trim();
+      if (!name) return;
+      state.machines.push({ id: uid(), name: name, type: state.newMachineType });
+      state.newMachineName = '';
+      markMachines();
+      render();
+    } })
+  ));
+
+  /* shop preferences (were editor props in the original) */
+  var pBox = frame('padding:var(--space-4);display:grid;gap:var(--space-3)');
+  pBox.appendChild(el('div', { class: 'field' },
+    el('label', { text: 'Shop name' }),
+    el('input', { class: 'input', 'data-k': 'shopName', value: state.settings.shopName, placeholder: 'Machine shop',
+      oninput: function (e) { state.settings.shopName = e.target.value; markSettings(); render(); } }),
+    el('div', { class: 'text-muted', style: 'font-size:11px;margin-top:3px', text: 'Shown in the header and at the top of every setup sheet.' })
+  ));
+  pBox.appendChild(el('div', { class: 'field' },
+    el('label', { text: 'Header subtitle' }),
+    el('input', { class: 'input', 'data-k': 'subtitle', value: state.settings.subtitle || '',
+      placeholder: 'Optional — leave empty for just the shop name',
+      oninput: function (e) { state.settings.subtitle = e.target.value; markSettings(); render(); } })
+  ));
+  function toggle(label, key) {
+    var id = 'pref-' + key;
+    return el('label', { for: id, style: 'display:flex;align-items:center;gap:var(--space-2);font-size:13px;cursor:pointer' },
+      el('input', { type: 'checkbox', id: id, 'data-k': key, checked: !!state.settings[key],
+        onchange: function (e) { state.settings[key] = e.target.checked; markSettings(); render(); } }),
+      label
+    );
+  }
+  pBox.appendChild(toggle('Show vendor column in the registry', 'showVendor'));
+  pBox.appendChild(toggle('Sign-off lines on setup sheets', 'signoffLines'));
+
+  return el('div', {},
+    el('div', { style: 'margin-bottom:var(--space-8)' },
+      el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase', text: 'Shop' }),
+      el('h2', { style: 'margin:0', text: 'Settings' })
+    ),
+    el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:var(--space-8);align-items:start;max-width:1000px' },
+      el('section', {}, el('h4', { style: 'margin:0 0 var(--space-4)', text: 'Machines' }), mBox),
+      el('section', {}, el('h4', { style: 'margin:0 0 var(--space-4)', text: 'Shop preferences' }), pBox)
+    ),
+    el('section', { style: 'margin-top:var(--space-8);max-width:1000px' },
+      el('h4', { style: 'margin:0 0 var(--space-4)', text: 'Machine types' }),
+      el('p', { class: 'text-muted', style: 'font-size:13px;margin:0 0 var(--space-3);max-width:70ch',
+        text: 'Each type gets its own jobs list and its own folder under jobs/. Untick Show to keep one out of the way — its jobs stay on disk.' }),
+      typesPanel()
+    )
+  );
+}
+
+/* ── tool registry ───────────────────────────────────────────────────── */
+
+function viewTools() {
+  var mt = state.machineType;
+  var showVendor = state.settings.showVendor !== false;
+  var fields = fieldsFor(mt);
+  // Notes and the part number live in the tool's own dialog, not the grid.
+  var colKeys = fields.map(function (f) { return f.k; })
+    .filter(function (k) { return k !== 'partno' && k !== 'notes' && (showVendor || k !== 'vendor'); });
+
+  var q = state.search.trim().toLowerCase();
+  var library = sortTools(state.tools.filter(function (t) { return t.machine === mt; }))
+    .filter(function (t) {
+      return !q || [t.tnum, t.desc, t.type, t.vendor, t.partno, t.material].some(function (v) {
+        return String(v || '').toLowerCase().indexOf(q) >= 0;
+      });
+    });
+
+  function cellVal(t, k) {
+    return k === 'vendor' ? ([t.vendor, t.partno].filter(Boolean).join(' · ') || '—') : (t[k] || '—');
+  }
+
+  var head = el('div', { style: 'display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-6);margin-bottom:var(--space-6);flex-wrap:wrap' },
+    el('div', {},
+      el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase', text: 'Master list' }),
+      el('h2', { style: 'margin:0', text: mt === 'lathe' ? 'Lathe tool registry' : 'Mill tool registry' }),
+      el('p', { class: 'text-muted', style: 'font-size:13px;margin:2px 0 0;max-width:62ch', text: mt === 'lathe'
+        ? 'Lathe T-numbers run in their own sequence. A T-number here is the shop-wide address for that exact tool on every lathe.'
+        : 'Mill T-numbers run in their own sequence. A T-number here is the shop-wide address for that exact tool on every mill.' })
+    ),
+    el('div', { style: 'display:flex;gap:var(--space-4);align-items:center' },
+      el('input', { class: 'input', style: 'width:260px', 'data-k': 'search', placeholder: 'Search T#, description, vendor',
+        value: state.search, oninput: function (e) { set({ search: e.target.value }); } }),
+      el('button', { class: 'btn btn-secondary', text: 'Print list', onclick: function () { printLibrary(mt, library); } }),
+      (function () {
+        var b = el('button', { class: 'btn btn-primary blueprint', onclick: function () {
+          set({ dialog: { kind: 'tool' }, draftError: '',
+            draft: { id: null, machine: mt, tnum: '', desc: '', type: mt === 'lathe' ? LATHE_TYPES[0] : MILL_TYPES[0], hand: 'Right' } });
+        } });
+        corners().forEach(function (c) { b.appendChild(c); });
+        b.appendChild(document.createTextNode('+ Add tool'));
+        return b;
+      })()
+    )
+  );
+
+  var box = frame('padding:var(--space-4)');
+  var table = el('table', { class: 'table' });
+  var thr = el('tr', {});
+  colKeys.forEach(function (k) {
+    var f = fields.filter(function (x) { return x.k === k; })[0] || {};
+    thr.appendChild(el('th', { text: f.label || k }));
+  });
+  thr.appendChild(el('th', { text: 'Photo' }));
+  thr.appendChild(el('th', { text: 'Used in' }));
+  thr.appendChild(el('th', {}));
+  table.appendChild(el('thead', {}, thr));
+
+  var tbody = el('tbody');
+  library.forEach(function (t) {
+    var used = usage(t.id);
+    // A tool has no page of its own — its detail is the edit dialog.
+    var tr = clickable(el('tr', {}), function () {
+      set({ dialog: { kind: 'tool' }, draft: Object.assign({}, t), draftError: '' });
+    });
+    colKeys.forEach(function (k) {
+      tr.appendChild(el('td', { style: 'font-variant-numeric:tabular-nums', text: cellVal(t, k) }));
+    });
+    tr.appendChild(el('td', {}, toolPhotoButton(t)));
+    tr.appendChild(el('td', {}, el('button', { class: 'btn btn-ghost', style: 'font-size:13px',
+      text: used.length ? 'Used in (' + used.length + ')' : 'Not used',
+      onclick: function () { set({ dialog: { kind: 'usage', toolId: t.id } }); } })));
+    tr.appendChild(el('td', {}, el('div', { style: 'display:flex;gap:var(--space-2);justify-content:flex-end' },
+      el('button', { class: 'btn btn-ghost', text: 'Edit', onclick: function () {
+        set({ dialog: { kind: 'tool' }, draft: Object.assign({}, t), draftError: '' });
+      } }),
+      el('button', { class: 'btn btn-ghost', text: 'Print', onclick: function () { printToolCard(t); } }),
+      el('button', { class: 'btn btn-ghost', text: 'Delete', onclick: function () { confirmDeleteTool(t); } })
+    )));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  box.appendChild(table);
+  if (!library.length) {
+    box.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;padding:var(--space-6) 0 var(--space-3);margin:0;text-align:center',
+      text: 'Nothing in this list yet. Add the first tool and give it its T-number.' }));
+  }
+
+  return el('div', {}, head, box);
+}
+
+/* Nothing is shown inline — the photo (and the tool's notes) open on click. */
+function toolPhotoButton(t) {
+  var has = !!(t.image || t.imageData);
+  if (!has && !t.notes) return el('span', { class: 'text-muted', style: 'font-size:12px', text: '—' });
+  return el('button', { class: 'btn btn-ghost', style: 'font-size:13px',
+    text: has ? (t.notes ? 'Photo + notes' : 'Photo') : 'Notes',
+    onclick: function () { set({ dialog: { kind: 'image', tool: t } }); } });
+}
+
+function confirmDeleteTool(t) {
+  var used = usage(t.id);
+  set({ dialog: {
+    kind: 'confirm',
+    title: used.length ? 'This tool is in use' : 'Delete ' + t.tnum + '?',
+    body: used.length
+      ? t.tnum + ' — ' + t.desc + ' is on ' + used.length + ' job' + (used.length > 1 ? 's' : '') +
+        ' (' + used.map(function (j) { return j.jobno; }).join(', ') + '). Deleting it removes the tool from those setups.'
+      : t.tnum + ' — ' + t.desc + ' will be removed from the registry.',
+    okLabel: used.length ? 'Delete anyway' : 'Delete',
+    action: function () {
+      if (t.image) deleteToolImage(t.image);
+      state.tools = state.tools.filter(function (x) { return x.id !== t.id; });
+      var touched = [];
+      state.jobs.forEach(function (j) {
+        var before = (j.tools || []).length;
+        j.tools = (j.tools || []).filter(function (x) { return x.toolId !== t.id; });
+        if (j.tools.length !== before) touched.push(j.id);
+      });
+      markTools();
+      if (touched.length) markJobs(touched);
+      set({ dialog: null });
+    }
+  } });
+}
+
+/* ── jobs list ───────────────────────────────────────────────────────── */
+
+function viewJobs() {
+  var mt = state.jobType;
+  var jobs = jobsOfType(mt).reverse();
+
+  var head = el('div', { style: 'display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-6);margin-bottom:var(--space-6)' },
+    el('div', {},
+      el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase', text: 'Setups' }),
+      el('h2', { style: 'margin:0', text: jobsPageTitle(mt) }),
+      el('p', { class: 'text-muted', style: 'font-size:13px;margin:2px 0 0',
+        text: 'Setups running on a ' + typeLabel(mt).toLowerCase() + '. ' +
+          (toolingFor(mt) === 'both' ? 'These pick from both the mill and lathe registries.'
+            : 'They pick from the ' + toolingFor(mt) + ' registry.') })
+    ),
+    (function () {
+      var b = el('button', { class: 'btn btn-primary blueprint', onclick: function () { newJob(mt); } });
+      corners().forEach(function (c) { b.appendChild(c); });
+      b.appendChild(document.createTextNode('+ New ' + typeLabel(mt).toLowerCase() + ' job'));
+      return b;
+    })()
+  );
+
+  var box = frame('padding:var(--space-4)');
+  var table = el('table', { class: 'table' },
+    el('thead', {}, el('tr', {},
+      ['Job / WO', 'Rev', 'Machine', 'Tools', 'Last run', ''].map(function (h) { return el('th', { text: h }); })
+    ))
+  );
+  var tbody = el('tbody');
+  jobs.forEach(function (j) {
+    var tr = clickable(el('tr', {}), function () { openJob(j.id); });
+    jobRowCells(j, { split: true }).forEach(function (c) { tr.appendChild(c); });
+    tr.appendChild(el('td', {}, el('div', { style: 'display:flex;gap:var(--space-2);justify-content:flex-end' },
+      el('button', { class: 'btn btn-ghost', text: 'Open setup', onclick: function () { openJob(j.id); } }),
+      el('button', { class: 'btn btn-ghost', text: 'Delete', onclick: function () { confirmDeleteJob(j); } })
+    )));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  box.appendChild(table);
+  if (!jobs.length) {
+    box.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;padding:var(--space-6) 0 var(--space-3);margin:0;text-align:center',
+      text: 'No ' + typeLabel(mt).toLowerCase() + ' jobs on record.' }));
+  }
+  return el('div', {}, head, box);
+}
+
+/* ── job detail ──────────────────────────────────────────────────────── */
+
+function viewJob() {
+  var job = jobById(state.jobId);
+  if (!job) return viewJobs();
+
+  var heading = [job.jobno || 'New job', job.rev ? 'Rev ' + job.rev : ''].filter(Boolean).join(' ');
+  var jobType = machineTypeOf(job);
+
+  var head = el('div', { style: 'display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-6);margin-bottom:var(--space-6)' },
+    el('div', {},
+      el('div', { class: 'text-muted', style: 'font-size:11px;letter-spacing:.12em;text-transform:uppercase', text: 'Job setup' }),
+      el('h2', { style: 'margin:0', text: heading })
+    ),
+    el('div', { style: 'display:flex;gap:var(--space-2)' },
+      el('button', { class: 'btn btn-secondary', text: 'Back to ' + typeLabel(jobType).toLowerCase() + ' jobs',
+        onclick: function () { set({ view: 'jobs', jobType: jobType }); } }),
+      (function () {
+        var b = el('button', { class: 'btn btn-primary blueprint', onclick: function () { printSheetFor(job); } });
+        corners().forEach(function (c) { b.appendChild(c); });
+        b.appendChild(document.createTextNode('Print setup sheet'));
+        return b;
+      })()
+    )
+  );
+
+  function textField(label, key, ph, type) {
+    return el('div', { class: 'field' },
+      el('label', { text: label }),
+      el('input', Object.assign({ class: 'input', 'data-k': 'job-' + key, value: job[key] || '',
+        oninput: function (e) { patchJob(job.id, defineOne(key, e.target.value)); } },
+        type ? { type: type } : {}, ph ? { placeholder: ph } : {}))
+    );
+  }
+  function defineOne(k, v) { var o = {}; o[k] = v; return o; }
+
+  var meta = frame('padding:var(--space-6);margin-bottom:var(--space-8)');
+  meta.appendChild(el('div', { style: 'display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4)' },
+    textField('Job / work order #', 'jobno', 'WO-1042'),
+    textField('Rev', 'rev', 'C'),
+    el('div', { class: 'field' },
+      el('label', { text: 'Machine' }),
+      select({ class: 'input', 'data-k': 'job-machine', onchange: function (e) { patchJob(job.id, { machine: e.target.value }); } },
+        state.machines.map(function (m) { return m.name; }), job.machine || '')
+    ),
+    el('div', { class: 'field' },
+      el('label', { text: 'Last run' }),
+      el('div', { style: 'display:flex;gap:var(--space-2)' },
+        el('input', { class: 'input', 'data-k': 'job-lastRun', type: 'date', value: job.lastRun || '',
+          oninput: function (e) { patchJob(job.id, { lastRun: e.target.value }); } }),
+        el('button', { class: 'btn btn-secondary', style: 'flex:none', text: 'Today',
+          onclick: function () { patchJob(job.id, { lastRun: today() }); } })
+      )
+    )
+  ));
+  meta.appendChild(el('div', { class: 'field', style: 'margin-top:var(--space-4)' },
+    el('label', { text: 'Setup notes' }),
+    el('textarea', { class: 'input', 'data-k': 'job-notes', placeholder: 'Workholding, datum, stickouts, program number, anything the next operator needs.',
+      value: job.notes || '', oninput: function (e) { patchJob(job.id, { notes: e.target.value }); } })
+  ));
+
+  /* picker */
+  var pq = state.pickSearch.trim().toLowerCase();
+  var picked = (job.tools || []).map(function (x) { return x.toolId; });
+
+  var pickBox = frame('padding:var(--space-3)');
+  var pickList = el('div', { style: 'display:grid;gap:1px;max-height:520px;overflow-y:auto;overflow-x:hidden' });
+  // Which registry this kind of machine draws from — 'both' for a mill-turn.
+  var tooling = toolingFor(jobType);
+  var pickRows = sortTools(state.tools.filter(function (t) { return tooling === 'both' || t.machine === tooling; }))
+    .filter(function (t) {
+      return !pq || [t.tnum, t.desc, t.type, t.vendor].some(function (v) { return String(v || '').toLowerCase().indexOf(pq) >= 0; });
+    });
+  pickRows.forEach(function (t) {
+    var added = picked.indexOf(t.id) >= 0;
+    pickList.appendChild(el('div', { style: 'display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2);border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent)' },
+      el('div', { style: 'font-family:var(--font-heading);font-size:15px;width:52px;font-variant-numeric:tabular-nums', text: t.tnum }),
+      el('div', { style: 'flex:1;min-width:0' },
+        el('div', { style: 'font-size:13px', text: t.desc }),
+        el('div', { class: 'text-muted', style: 'font-size:11px', text: spec(t) })
+      ),
+      el('button', { class: 'btn btn-secondary', style: 'font-size:12px', disabled: added, text: added ? 'Added' : '+ Add',
+        onclick: function () {
+          if (added) return;
+          patchJob(job.id, { tools: (job.tools || []).concat([{ toolId: t.id, note: '' }]) });
+        } })
+    ));
+  });
+  pickBox.appendChild(pickList);
+  if (!pickRows.length) {
+    pickBox.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;padding:var(--space-4);margin:0;text-align:center', text: 'No matching tools in this registry.' }));
+  }
+
+  var pickSection = el('section', {},
+    el('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-4)' },
+      el('h4', { style: 'margin:0', text: tooling === 'both' ? 'Mill and lathe registries'
+        : (tooling === 'lathe' ? 'Lathe registry' : 'Mill registry') }),
+      el('input', { class: 'input', style: 'width:190px', 'data-k': 'pickSearch', placeholder: 'Search', value: state.pickSearch,
+        oninput: function (e) { set({ pickSearch: e.target.value }); } })
+    ),
+    pickBox
+  );
+
+  /* tools on this setup */
+  var listBox = frame('padding:var(--space-4)');
+  var ltable = el('table', { class: 'table' },
+    el('thead', {}, el('tr', {}, ['Stn', 'Description', 'Spec', 'Photo', 'Setup note', ''].map(function (h) { return el('th', { text: h }); })))
+  );
+  var lbody = el('tbody');
+  (job.tools || []).forEach(function (x, i) {
+    var t = state.tools.filter(function (y) { return y.id === x.toolId; })[0] || {};
+    lbody.appendChild(el('tr', {},
+      el('td', { style: 'font-family:var(--font-heading);font-size:15px;font-variant-numeric:tabular-nums', text: t.tnum || '—' }),
+      el('td', { text: t.desc || 'Removed tool' }),
+      el('td', { class: 'text-muted', style: 'font-size:12px', text: t.id ? spec(t) : '' }),
+      el('td', {}, t.id ? toolPhotoButton(t) : null),
+      el('td', {}, el('input', { class: 'input', style: 'min-height:30px;font-size:13px', 'data-k': 'note-' + i,
+        placeholder: '1.25 stickout', value: x.note || '',
+        oninput: function (e) {
+          var v = e.target.value;
+          patchJob(job.id, { tools: job.tools.map(function (y, k) { return k === i ? Object.assign({}, y, { note: v }) : y; }) });
+        } })),
+      el('td', { style: 'text-align:right' }, el('button', { class: 'btn btn-ghost', text: 'Remove', onclick: function () {
+        patchJob(job.id, { tools: job.tools.filter(function (y, k) { return k !== i; }) });
+      } }))
+    ));
+  });
+  ltable.appendChild(lbody);
+  listBox.appendChild(ltable);
+  if (!(job.tools || []).length) {
+    listBox.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;padding:var(--space-6) 0 var(--space-3);margin:0;text-align:center', text: 'Pick tools from the registry on the left.' }));
+  }
+
+  var count = (job.tools || []).length;
+  var listSection = el('section', {},
+    el('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)' },
+      el('h4', { style: 'margin:0', text: 'Tools on this setup' }),
+      el('span', { class: 'text-muted', style: 'font-size:12px', text: count + (count === 1 ? ' tool' : ' tools') })
+    ),
+    listBox
+  );
+
+  return el('div', {}, head, meta,
+    el('div', { style: 'display:grid;grid-template-columns:1fr 1.15fr;gap:var(--space-8);align-items:start' }, pickSection, listSection));
+}
+
+/* ── dialogs ─────────────────────────────────────────────────────────── */
+
+function dialogShell(widthStyle, titleText, bodyNode, actionNodes) {
+  var box = frame((widthStyle || '') + ';background:var(--color-bg)');
+  box.className = 'dialog blueprint';
+  box.setAttribute('style', (widthStyle || 'width:min(440px,100%)') + ';background:var(--color-bg)');
+  box.appendChild(el('div', { class: 'dialog-title', text: titleText }));
+  box.appendChild(bodyNode);
+  box.appendChild(el('div', { class: 'dialog-actions' }, actionNodes));
+  return el('div', { class: 'dialog-backdrop' }, box);
+}
+
+/* The photo row inside the tool dialog: a thumbnail that opens full size,
+   a file picker, and a remove. */
+function photoPicker(d) {
+  var has = !!(d.image || d.imageData);
+
+  var thumb = el('div', {
+    style: 'width:96px;height:72px;flex:none;border:1px solid var(--color-divider);display:grid;place-items:center;' +
+           'overflow:hidden;background:var(--color-surface);font-size:11px;color:color-mix(in srgb, var(--color-text) 45%, transparent)' +
+           (has ? ';cursor:zoom-in' : ''),
+    text: has ? '' : 'No photo',
+    onclick: function () { if (has) set({ dialog: { kind: 'image', tool: d, back: 'tool' } }); }
+  });
+  if (has) {
+    var img = el('img', { style: 'width:100%;height:100%;object-fit:cover' });
+    thumb.appendChild(img);
+    imageUrl(d).then(function (u) { if (u) img.src = u; });
+  }
+
+  var file = el('input', { type: 'file', accept: 'image/*', style: 'display:none',
+    onchange: function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      fileToJpegDataUrl(f).then(function (dataUrl) {
+        d.imageData = dataUrl;
+        render();
+      }, function (err) { set({ draftError: err.message }); });
+    } });
+
+  return el('div', { style: 'display:flex;align-items:center;gap:var(--space-4);margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--color-divider)' },
+    thumb,
+    el('div', { style: 'display:flex;flex-direction:column;gap:var(--space-2);align-items:flex-start' },
+      el('div', { class: 'text-muted', style: 'font-size:12px', text: has ? 'Click the photo to see it full size.' : 'A photo of the tool or its assembly, shown on demand.' }),
+      el('div', { style: 'display:flex;gap:var(--space-2)' },
+        el('button', { class: 'btn btn-secondary', text: has ? 'Replace photo' : 'Add photo', onclick: function () { file.click(); } }),
+        has ? el('button', { class: 'btn btn-ghost', text: 'Remove photo', onclick: function () {
+          d.removeImage = d.image || null;
+          delete d.imageData;
+          d.image = null;
+          render();
+        } }) : null
+      ),
+      file
+    )
+  );
+}
+
+/* Full-size photo, plus whatever notes the tool carries. */
+function imageDialog() {
+  var t = state.dialog.tool;
+  var back = state.dialog.back;
+  var img = el('img', { style: 'max-width:100%;max-height:60vh;display:block;margin:0 auto;border:1px solid var(--color-divider)' });
+  imageUrl(t).then(function (u) {
+    if (u) img.src = u;
+    else img.replaceWith(el('p', { class: 'text-muted', style: 'font-size:13px;margin:0',
+      text: store.connected ? 'The photo file is missing from the tools folder.' : 'Connect the data folder to see this photo.' }));
+  });
+
+  var body = el('div', { class: 'dialog-body' }, img);
+  if (t.notes) {
+    body.appendChild(el('p', { style: 'white-space:pre-wrap;margin:var(--space-4) 0 0;font-size:13px', text: t.notes }));
+  }
+
+  return dialogShell('width:min(860px,100%)', [t.tnum, t.desc].filter(Boolean).join(' — '), body, [
+    el('button', { class: 'btn btn-secondary', text: 'Print this tool', onclick: function () { printToolCard(t); } }),
+    el('button', { class: 'btn btn-secondary', text: 'Close', onclick: function () {
+      if (back === 'tool') set({ dialog: { kind: 'tool' } });      // draft is still in state
+      else closeDialog();
+    } })
+  ]);
+}
+
+function toolDialog() {
+  var d = state.draft;
+  if (!d) return null;
+  var fields = fieldsFor(d.machine);
+  var grid = el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3)' });
+  fields.forEach(function (f) {
+    var control;
+    if (f.options) {
+      control = select({ class: 'input', 'data-k': 'draft-' + f.k, onchange: function (e) { d[f.k] = e.target.value; render(); } },
+        f.options, d[f.k] || f.options[0]);
+    } else if (f.long) {
+      control = el('textarea', { class: 'input', style: 'min-height:70px', 'data-k': 'draft-' + f.k,
+        placeholder: f.ph || '', value: d[f.k] || '', oninput: function (e) { d[f.k] = e.target.value; } });
+    } else {
+      control = el('input', { class: 'input', 'data-k': 'draft-' + f.k, placeholder: f.ph || '', value: d[f.k] || '',
+        oninput: function (e) { d[f.k] = e.target.value; } });
+    }
+    grid.appendChild(el('div', { class: 'field', style: f.long ? 'grid-column:1/-1' : '' },
+      el('label', { text: f.label }), control));
+  });
+
+  var body = el('div', { class: 'dialog-body' }, grid, photoPicker(d));
+  if (state.draftError) {
+    body.appendChild(el('p', { style: 'font-size:13px;color:var(--color-accent-800);margin:var(--space-3) 0 0', text: state.draftError }));
+  }
+
+  return dialogShell('width:min(720px,100%)', d.id ? 'Edit ' + (d.tnum || 'tool') : 'New ' + (d.machine === 'lathe' ? 'lathe' : 'mill') + ' tool', body, [
+    el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: closeDialog }),
+    el('button', { class: 'btn btn-primary', text: 'Save tool', onclick: saveTool })
+  ]);
+}
+
+function saveTool() {
+  var d = state.draft;
+  if (!d) return;
+  if (!String(d.tnum || '').trim()) {
+    return set({ draftError: 'Give the tool a T-number — it is how every job refers to it.' });
+  }
+  var clash = state.tools.some(function (t) {
+    return t.machine === d.machine && t.id !== d.id &&
+      String(t.tnum).trim().toLowerCase() === String(d.tnum).trim().toLowerCase();
+  });
+  if (clash) return set({ draftError: d.tnum + ' is already taken in the ' + d.machine + ' sequence.' });
+
+  if (d.removeImage) { deleteToolImage(d.removeImage); }
+  var saved = Object.assign({}, d);
+  delete saved.removeImage;
+  if (!saved.image) delete saved.image;
+
+  if (d.id) {
+    state.tools = state.tools.map(function (t) { return t.id === d.id ? saved : t; });
+  } else {
+    saved.id = uid();
+    state.tools = state.tools.concat([saved]);
+  }
+  markTools();
+  set({ dialog: null, draft: null, draftError: '' });
+}
+
+function usageDialog() {
+  var tool = state.tools.filter(function (t) { return t.id === state.dialog.toolId; })[0];
+  var jobs = tool ? usage(tool.id) : [];
+  var table = el('table', { class: 'table' },
+    el('thead', {}, el('tr', {}, ['Job / WO', 'Machine', 'Last run', ''].map(function (h) { return el('th', { text: h }); })))
+  );
+  var tbody = el('tbody');
+  jobs.forEach(function (j) {
+    tbody.appendChild(clickable(el('tr', {},
+      el('td', { style: 'font-variant-numeric:tabular-nums', text: j.jobno || '(untitled)' }),
+      el('td', { class: 'text-muted', text: j.machine || '—' }),
+      el('td', { class: 'text-muted', style: 'font-variant-numeric:tabular-nums', text: j.lastRun || '—' }),
+      el('td', { style: 'text-align:right' }, el('button', { class: 'btn btn-ghost', text: 'Open setup', onclick: function () { openJob(j.id); } }))
+    ), function () { openJob(j.id); }));
+  });
+  table.appendChild(tbody);
+  var body = el('div', { class: 'dialog-body' }, table);
+  if (!jobs.length) {
+    body.appendChild(el('p', { class: 'text-muted', style: 'font-size:13px;margin:var(--space-4) 0 0', text: 'This tool is not on any job yet.' }));
+  }
+  var title = tool ? tool.tnum + ' — used in ' + jobs.length + ' job' + (jobs.length === 1 ? '' : 's') : '';
+  return dialogShell('width:min(680px,100%)', title, body, [
+    el('button', { class: 'btn btn-secondary', text: 'Close', onclick: closeDialog })
+  ]);
+}
+
+function conflictDialog() {
+  var c = conflict || { label: 'this record' };
+  var body = el('div', { class: 'dialog-body' },
+    el('p', { text: c.label.charAt(0).toUpperCase() + c.label.slice(1) + ' was changed on another machine while you were editing it.' }),
+    el('p', { style: 'margin:0', text: 'Keep mine overwrites their version with what is on your screen. Take theirs discards your unsaved edits and loads the copy from the folder.' })
+  );
+  return dialogShell('width:min(520px,100%)', 'Changed by someone else', body, [
+    el('button', { class: 'btn btn-secondary', text: 'Take theirs', onclick: resolveTakeTheirs }),
+    el('button', { class: 'btn btn-primary', text: 'Keep mine', onclick: resolveKeepMine })
+  ]);
+}
+
+function confirmDialog() {
+  var d = state.dialog;
+  return dialogShell('width:min(440px,100%)', d.title, el('div', { class: 'dialog-body', text: d.body }), [
+    el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: closeDialog }),
+    el('button', { class: 'btn btn-primary', text: d.okLabel || 'OK', onclick: function () { if (d.action) d.action(); } })
+  ]);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Render — full rebuild, with focus and caret preserved across renders
+   ══════════════════════════════════════════════════════════════════ */
+
+var root = document.getElementById('app');
+
+function render() {
+  var active = document.activeElement;
+  var key = active && active.dataset ? active.dataset.k : null;
+  var selStart = null, selEnd = null;
+  if (key && typeof active.selectionStart === 'number') {
+    selStart = active.selectionStart; selEnd = active.selectionEnd;
+  }
+
+  var page;
+  if (state.view === 'tools') page = viewTools();
+  else if (state.view === 'jobs') page = viewJobs();
+  else if (state.view === 'job') page = viewJob();
+  else if (state.view === 'settings') page = viewSettings();
+  else page = viewDash();
+
+  var main = el('main', { style: 'max-width:1440px;margin:0 auto;padding:var(--space-8) var(--space-6) 80px' }, page);
+  var shell = el('div', { style: 'min-height:100vh' }, header(), main);
+
+  if (state.dialog) {
+    var dlg = state.dialog.kind === 'tool' ? toolDialog()
+      : state.dialog.kind === 'usage' ? usageDialog()
+      : state.dialog.kind === 'image' ? imageDialog()
+      : state.dialog.kind === 'conflict' ? conflictDialog()
+      : confirmDialog();
+    if (dlg) shell.appendChild(dlg);
+  }
+
+  root.textContent = '';
+  root.appendChild(shell);
+
+  if (key) {
+    var next = root.querySelector('[data-k="' + key + '"]');
+    if (next) {
+      next.focus();
+      if (selStart !== null && typeof next.setSelectionRange === 'function') {
+        try { next.setSelectionRange(selStart, selEnd); } catch (e) { /* type=date etc. */ }
+      }
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Boot
+   ══════════════════════════════════════════════════════════════════ */
+
+var cached = loadLocal();
+if (cached) {
+  state.tools = cached.tools || [];
+  state.jobs = cached.jobs || [];
+  state.machines = cached.machines || SEED.machines.slice();
+  state.settings = Object.assign({}, DEFAULT_SETTINGS, cached.settings || {});
+}
+
+render();
+restoreFolder();
+
+window.addEventListener('beforeunload', function () {
+  if (flushTimer) { clearTimeout(flushTimer); flushNow(); }
+});
+
+/* Coming back to the tab should show the floor as it is now, not as it was
+   when you walked away — cheaper and faster than waiting for the next poll. */
+window.addEventListener('focus', function () { if (store.connected) pollDisk(); });
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && store.connected) pollDisk();
+});
+
+})();
+</script>
+</body>
+</html>
